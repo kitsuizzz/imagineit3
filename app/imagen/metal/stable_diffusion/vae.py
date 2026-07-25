@@ -142,8 +142,8 @@ class Encoder(nn.Module):
     def __call__(self, x):
         x = self.conv_in(x)
 
-        for l in self.down_blocks:
-            x = l(x)
+        for layer in self.down_blocks:
+            x = layer(x)
 
         x = self.mid_blocks[0](x)
         x = self.mid_blocks[1](x)
@@ -213,8 +213,8 @@ class Decoder(nn.Module):
         x = self.mid_blocks[1](x)
         x = self.mid_blocks[2](x)
 
-        for l in self.up_blocks:
-            x = l(x)
+        for layer in self.up_blocks:
+            x = layer(x)
 
         x = self.conv_norm_out(x)
         x = nn.silu(x)
@@ -234,14 +234,14 @@ class Autoencoder(nn.Module):
         self.encoder = Encoder(
             config.in_channels,
             config.latent_channels_out,
-            config.block_out_channels,
+            list(config.block_out_channels),
             config.layers_per_block,
             resnet_groups=config.norm_num_groups,
         )
         self.decoder = Decoder(
             config.latent_channels_in,
             config.out_channels,
-            config.block_out_channels,
+            list(config.block_out_channels),
             config.layers_per_block + 1,
             resnet_groups=config.norm_num_groups,
         )

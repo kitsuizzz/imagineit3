@@ -55,7 +55,9 @@ class Tokenizer:
 
             new_unigrams = []
             skip = False
+            _b = None
             for a, b in zip(unigrams, unigrams[1:]):
+                _b = b
                 if skip:
                     skip = False
                     continue
@@ -68,12 +70,13 @@ class Tokenizer:
                     new_unigrams.append(a)
 
             if not skip:
-                new_unigrams.append(b)
+                if _b:
+                    new_unigrams.append(_b)
 
             unigrams = new_unigrams
             unique_bigrams = set(zip(unigrams, unigrams[1:]))
 
-        self._cache[text] = unigrams
+        self._cache[text] = str(unigrams)
 
         return unigrams
 

@@ -10,7 +10,7 @@ class AutoencoderConfig:
     out_channels: int = 3
     latent_channels_out: int = 8
     latent_channels_in: int = 4
-    block_out_channels: Tuple[int] = (128, 256, 512, 512)
+    block_out_channels: Tuple[int, int, int, int] = (128, 256, 512, 512)
     layers_per_block: int = 2
     norm_num_groups: int = 32
     scaling_factor: float = 0.18215
@@ -33,20 +33,20 @@ class UNetConfig:
     out_channels: int = 4
     conv_in_kernel: int = 3
     conv_out_kernel: int = 3
-    block_out_channels: Tuple[int] = (320, 640, 1280, 1280)
-    layers_per_block: Tuple[int] = (2, 2, 2, 2)
+    block_out_channels: Tuple[int, int, int, int] = (320, 640, 1280, 1280)
+    layers_per_block: Tuple[int, int, int, int] = (2, 2, 2, 2)
     mid_block_layers: int = 2
-    transformer_layers_per_block: Tuple[int] = (1, 1, 1, 1)
-    num_attention_heads: Tuple[int] = (5, 10, 20, 20)
-    cross_attention_dim: Tuple[int] = (1024,) * 4
+    transformer_layers_per_block: Tuple[int, int, int, int] = (1, 1, 1, 1)
+    num_attention_heads: Tuple[int, int, int, int] = (5, 10, 20, 20)
+    cross_attention_dim: Tuple[int, int, int, int] = (1024, 1024, 1024, 1024)
     norm_num_groups: int = 32
-    down_block_types: Tuple[str] = (
+    down_block_types: Tuple[str, str, str, str] = (
         "CrossAttnDownBlock2D",
         "CrossAttnDownBlock2D",
         "CrossAttnDownBlock2D",
         "DownBlock2D",
     )
-    up_block_types: Tuple[str] = (
+    up_block_types: Tuple[str, str, str, str] = (
         "UpBlock2D",
         "CrossAttnUpBlock2D",
         "CrossAttnUpBlock2D",

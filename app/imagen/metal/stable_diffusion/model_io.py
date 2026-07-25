@@ -1,7 +1,7 @@
 # Copyright © 2023-2024 Apple Inc.
 
 import json
-from typing import Optional
+from typing import Optional, cast, Tuple
 
 import mlx.core as mx
 from huggingface_hub import hf_hub_download
@@ -212,16 +212,23 @@ def load_unet(key: str = _DEFAULT_MODEL, float16: bool = False):
             in_channels=config["in_channels"],
             out_channels=config["out_channels"],
             block_out_channels=config["block_out_channels"],
-            layers_per_block=[config["layers_per_block"]] * n_blocks,
+            layers_per_block=cast(
+                Tuple[int, int, int, int], [config["layers_per_block"]] * n_blocks
+            ),
             transformer_layers_per_block=config.get(
                 "transformer_layers_per_block", (1,) * 4
             ),
-            num_attention_heads=(
-                [config["attention_head_dim"]] * n_blocks
-                if isinstance(config["attention_head_dim"], int)
-                else config["attention_head_dim"]
+            num_attention_heads=cast(
+                Tuple[int, int, int, int],
+                (
+                    [config["attention_head_dim"]] * n_blocks
+                    if isinstance(config["attention_head_dim"], int)
+                    else config["attention_head_dim"]
+                ),
             ),
-            cross_attention_dim=[config["cross_attention_dim"]] * n_blocks,
+            cross_attention_dim=cast(
+                Tuple[int, int, int, int], [config["cross_attention_dim"]] * n_blocks
+            ),
             norm_num_groups=config["norm_num_groups"],
             down_block_types=config["down_block_types"],
             up_block_types=config["up_block_types"][::-1],
@@ -340,6 +347,6 @@ def load_tokenizer(
     with open(merges_file, encoding="utf-8") as f:
         bpe_merges = f.read().strip().split("\n")[1 : 49152 - 256 - 2 + 1]
     bpe_merges = [tuple(m.split()) for m in bpe_merges]
-    bpe_ranks = dict(map(reversed, enumerate(bpe_merges)))
+    bpe_ranks = {merge: i for i, merge in enumerate(bpe_merges)}
 
     return Tokenizer(bpe_ranks, vocab)

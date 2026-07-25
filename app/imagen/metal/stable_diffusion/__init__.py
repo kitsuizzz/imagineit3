@@ -106,7 +106,7 @@ class StableDiffusion:
         num_steps: int = 50,
         cfg_weight: float = 7.5,
         negative_text: str = "",
-        latent_size: Tuple[int] = (64, 64),
+        latent_size: Tuple[int, int] = (64, 64),
         seed=None,
     ):
         # Set the PRNG state
@@ -202,7 +202,7 @@ class StableDiffusionXL(StableDiffusion):
         n_images: int = 1,
         cfg_weight: float = 7.5,
         negative_text: str = "",
-    ):
+    ) -> Tuple[mx.array, mx.array]:
         tokens_1 = self._tokenize(
             self.tokenizer_1,
             text,
@@ -216,6 +216,10 @@ class StableDiffusionXL(StableDiffusion):
 
         conditioning_1 = self.text_encoder_1(tokens_1)
         conditioning_2 = self.text_encoder_2(tokens_2)
+        if not conditioning_1.hidden_states:
+            raise ValueError("Hidden states of conditioning_1 is null")
+        if not conditioning_2.hidden_states:
+            raise ValueError("Hidden states of conditioning_2 is null")
         conditioning = mx.concatenate(
             [conditioning_1.hidden_states[-2], conditioning_2.hidden_states[-2]],
             axis=-1,
@@ -235,7 +239,7 @@ class StableDiffusionXL(StableDiffusion):
         num_steps: int = 2,
         cfg_weight: float = 0.0,
         negative_text: str = "",
-        latent_size: Tuple[int] = (64, 64),
+        latent_size: Tuple[int, int] = (128, 128),
         seed=None,
     ):
         # Set the PRNG state

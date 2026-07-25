@@ -296,6 +296,10 @@ class UNetModel(nn.Module):
         )
 
         if config.addition_embed_type == "text_time":
+            if not config.addition_time_embed_dim:
+                raise ValueError("addition_time_embed_dim is null")
+            if not config.projection_class_embeddings_input_dim:
+                raise ValueError("projection_class_embeddings_input_dim is null")
             self.add_time_proj = nn.SinusoidalPositionalEncoding(
                 config.addition_time_embed_dim,
                 max_freq=1,
