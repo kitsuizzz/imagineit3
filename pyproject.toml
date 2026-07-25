@@ -13,6 +13,7 @@ dependencies = [
     "greenlet",
     "alembic",
     "minio",
+    "valkey",
 ]
 
 [build-system]
