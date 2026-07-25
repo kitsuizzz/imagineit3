@@ -38,6 +38,18 @@ services:
       timeout: 5s
       retries: 3
 
+
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    container_name: valkey
+    restart: always
+    ports:
+      - "${VALKEY_PORT}:6379"
+    command: valkey-server --requirepass ${VALKEY_PASSWORD}
+    volumes:
+      - valkey_data:/data
+
 volumes:
   mariadb_data:
   minio_data:
+  valkey_data:
