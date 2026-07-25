@@ -1,5 +1,7 @@
 from sqlalchemy import Column, Integer
-from . import Base
+from . import get_base
+
+Base = get_base()
 
 
 class Images(Base):

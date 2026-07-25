@@ -4,17 +4,21 @@ from fastapi import FastAPI
 import uvicorn
 from dotenv import load_dotenv
 
-load_dotenv()
+from database import init_db
+from database.minio import BUCKET_NAME, connect_bucket, init_minio
+from api.v3 import v3_router
+from database.valkey import init_valkey
 
-from database.minio import connect_bucket, BUCKET_NAME  # noqa: E402
-from api.v3 import v3_router  # noqa: E402
+load_dotenv()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # App pre-inits
-    # Minio
-    await connect_bucket(BUCKET_NAME)
+    init_db()
+    init_minio(app)
+    init_valkey(app)
+    await connect_bucket(app, BUCKET_NAME)
 
     yield  # App execution
     # App exits

@@ -2,16 +2,42 @@ import os
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm.decl_api import DeclarativeMeta
 
-DATABASE_URL = f"{os.getenv('DB_ENGINE')}+{os.getenv('DB_DRIVER')}://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+_DATABASE_URL = None
+_AsyncSessionLocal = None
+_Base = None
 
-engine = create_async_engine(DATABASE_URL, pool_recycle=3600, echo=True)
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
-Base = declarative_base()
+
+def init_db():
+    global _DATABASE_URL
+    global _AsyncSessionLocal
+    global _Base
+    _DATABASE_URL = f"{os.getenv('DB_ENGINE')}+{os.getenv('DB_DRIVER')}://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+
+    engine = create_async_engine(_DATABASE_URL, pool_recycle=3600, echo=True)
+    _AsyncSessionLocal = async_sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
+    )
+    _Base = declarative_base()
 
 
 async def get_db():
-    async with AsyncSessionLocal() as session:
+    if not _AsyncSessionLocal:
+        raise ConnectionError("DB not conencted")
+    async with _AsyncSessionLocal() as session:
         yield session
+
+
+def get_db_url() -> str:
+    global _DATABASE_URL
+    if not _DATABASE_URL:
+        raise ValueError("DB not initialized")
+    return _DATABASE_URL
+
+
+def get_base() -> DeclarativeMeta:
+    global _Base
+    if not _Base:
+        raise ValueError("DB not initialized")
+    return _Base
