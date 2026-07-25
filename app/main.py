@@ -6,25 +6,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from database.minio import connect_bucket, BUCKET_NAME  # noqa: E402
+from api.v3 import v3_router  # noqa: E402
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # App pre-inits
+    # Minio
+    await connect_bucket(BUCKET_NAME)
+
     yield  # App execution
     # App exits
 
 
 app = FastAPI(lifespan=lifespan)
-
-
-@app.get("/")
-def read_root():
-    return {"message": "Hello from your FastAPI application!"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str | None = None):
-    return {"item_id": item_id, "q": q}
+app.include_router(v3_router, prefix="/api/v3")
 
 
 if __name__ == "__main__":
