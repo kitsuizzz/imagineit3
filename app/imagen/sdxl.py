@@ -1,3 +1,5 @@
+import asyncio
+import queue
 import platform
 
 from fastapi import FastAPI
@@ -9,6 +11,21 @@ IS_APPLE_METAL = platform.machine().lower() == "arm64"
 
 async def init_sdxl(app: FastAPI, model: str):
     app.state.sdxl = LoadedSDXL(app, model)
+
+
+class DedicatedSDXLWorker:
+    def __init__(self, model: str):
+        self._queue: queue.Queue = queue.Queue()
+
+    def _threading_loop(self):
+        while True:
+            pass
+
+    def interrupt(self):
+        """
+        Terminates this worker thread and wait
+        """
+        self._queue.put(None)
 
 
 class LoadedSDXL:
@@ -34,7 +51,6 @@ class LoadedSDXL:
             from imagen.metal.stable_diffusion import StableDiffusionXL
             import mlx.core as mx
 
-            mx.set_default_stream(mx.default_stream(mx.default_device()))
             if not self._sdxl:
                 raise ValueError()
             sdxl: StableDiffusionXL = self._sdxl
@@ -55,24 +71,3 @@ class LoadedSDXL:
             mx.eval(decoded)
             img_array = (decoded * 255).astype(mx.uint8)
             return bytes(img_array)
-
-    async def infer(
-        self,
-        prompt: str,
-        negative_prompt: str,
-        guidance_scale: float,
-        steps: int,
-        seed: int,
-        width: int,
-        height: int,
-    ):
-        await run_in_threadpool(
-            self.infer_and_wait,
-            prompt,
-            negative_prompt,
-            guidance_scale,
-            steps,
-            seed,
-            width,
-            height,
-        )
