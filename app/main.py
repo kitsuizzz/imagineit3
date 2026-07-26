@@ -8,6 +8,7 @@ from database import init_db
 from database.minio import BUCKET_NAME, connect_bucket, init_minio
 from api.v3 import v3_router
 from database.valkey import init_valkey
+from imagen.sdxl import init_sdxl
 
 load_dotenv()
 
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
     init_db()
     init_minio(app)
     init_valkey(app)
+    await init_sdxl(app, "wssdaas/nova-anime-xl-ilv-19.0")
     await connect_bucket(app, BUCKET_NAME)
 
     yield  # App execution
