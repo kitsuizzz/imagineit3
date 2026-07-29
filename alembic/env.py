@@ -10,13 +10,14 @@ from sqlalchemy.orm.decl_api import DeclarativeMeta
 from alembic import context
 
 from app.database import init_db, get_base, get_db_url
-import app.database.models
 
 load_dotenv()
 
 init_db()
 Base: DeclarativeMeta = get_base()
 DATABASE_URL = get_db_url()
+
+from app.database.models import Image
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

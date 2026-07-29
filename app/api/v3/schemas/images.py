@@ -1,3 +1,4 @@
+from pydantic import ConfigDict
 from pydantic.main import BaseModel
 
 
@@ -9,3 +10,9 @@ class ImagenRequest(BaseModel):
     cfg: float | None = None
     steps: int | None = None
     seed: int | None = None
+
+
+class InferenceResponse(BaseModel):
+    steps_status: str
+
+    model_config = ConfigDict(from_attributes=True)

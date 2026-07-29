@@ -14,7 +14,7 @@ class Tokenizer:
             regex.IGNORECASE,
         )
 
-        self._cache = {self.bos: self.bos, self.eos: self.eos}
+        # self._cache = {self.bos: self.bos, self.eos: self.eos}
 
     @property
     def bos(self):
@@ -33,8 +33,8 @@ class Tokenizer:
         return self.vocab[self.eos]
 
     def bpe(self, text):
-        if text in self._cache:
-            return self._cache[text]
+        # if text in self._cache:
+        #    return self._cache[text]
 
         unigrams = list(text[:-1]) + [text[-1] + "</w>"]
         unique_bigrams = set(zip(unigrams, unigrams[1:]))
@@ -76,7 +76,7 @@ class Tokenizer:
             unigrams = new_unigrams
             unique_bigrams = set(zip(unigrams, unigrams[1:]))
 
-        self._cache[text] = str(unigrams)
+        # self._cache[text] = str(unigrams)
 
         return unigrams
 
@@ -93,8 +93,28 @@ class Tokenizer:
         # Split the tokens according to the byte-pair merge file
         bpe_tokens = [ti for t in tokens for ti in self.bpe(t)]
 
-        # Map to token ids and return
-        tokens = [self.vocab[t] for t in bpe_tokens]
+        try:
+            tokens = []
+            for t in bpe_tokens:
+                try:
+                    tokens.append(self.vocab[t])
+                except KeyError as e:
+                    import sys
+
+                    print(
+                        f"\n[DIAGNOSTIC] FAILED ON INDIVIDUAL TOKEN: {repr(t)}",
+                        file=sys.stderr,
+                    )
+                    raise e
+        except KeyError as e:
+            import sys
+
+            print("\n" + "=" * 50, file=sys.stderr)
+            print("CRITICAL: Tokenizer failed with KeyError!", file=sys.stderr)
+            print(f"Original text argument: {repr(text)}", file=sys.stderr)
+            print(f"Computed bpe_tokens list: {bpe_tokens}", file=sys.stderr)
+            print("=" * 50 + "\n", file=sys.stderr)
+            raise e
         if prepend_bos:
             tokens = [self.bos_token] + tokens
         if append_eos:

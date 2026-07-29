@@ -1,10 +1,10 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 import uvicorn
 from dotenv import load_dotenv
 
-from database import init_db
 from database.minio import BUCKET_NAME, connect_bucket, init_minio
 from api.v3 import v3_router
 from database.valkey import init_valkey
@@ -15,11 +15,12 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # hold ref to event loop
+    app.state.event_loop = asyncio.get_running_loop()
     # App pre-inits
-    init_db()
-    init_minio(app)
+    await init_minio(app)
     init_valkey(app)
-    await init_sdxl(app, "wssdaas/nova-anime-xl-ilv-19.0")
+    init_sdxl(app, "wssdaas/nova-anime-xl-ilv-19.0")
     await connect_bucket(app, BUCKET_NAME)
 
     yield  # App execution

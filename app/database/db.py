@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import os
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -23,6 +24,14 @@ def init_db():
 
 
 async def get_db():
+    if not _AsyncSessionLocal:
+        raise ConnectionError("DB not conencted")
+    async with _AsyncSessionLocal() as session:
+        yield session
+
+
+@asynccontextmanager
+async def db_session():
     if not _AsyncSessionLocal:
         raise ConnectionError("DB not conencted")
     async with _AsyncSessionLocal() as session:
