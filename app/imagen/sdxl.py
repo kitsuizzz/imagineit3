@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import torch
 import threading
 import asyncio
 import platform
@@ -174,6 +175,13 @@ class LoadedSDXL:
             mx.set_cache_limit(1 * 1024 * 1024 * 1024)
             self._sdxl = StableDiffusionXL(model=model, float16=True)
             self._sdxl.ensure_models_are_loaded()
+        else:
+            from diffusers import StableDiffusionXLPipeline
+
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._sdxl = StableDiffusionXLPipeline.from_pretrained(
+                model, torch_dtype=torch.float16
+            ).to(self.device)
 
     async def infer(
         self,
@@ -226,3 +234,45 @@ class LoadedSDXL:
             pil_img.save(buffer, format="PNG")  # Or "JPEG"
             encoded_bytes = buffer.getvalue()
             return encoded_bytes
+        else:
+            from diffusers import StableDiffusionXLPipeline
+
+            if not self._sdxl:
+                raise ValueError()
+
+            generator = torch.Generator(device=self.device).manual_seed(seed)
+            sdxl: StableDiffusionXLPipeline = self._sdxl
+
+            # TODO: Fix inference_requests not being sent properly
+            # try:
+            #     loop = asyncio.get_running_loop()
+            # except RuntimeError:
+            #     loop = None
+            #
+            # def progress_callback(pipe, i, t, callback_kwargs):
+            #     if worker.inference_requests:
+            #         inf = worker.inference_requests.get(promise_id)
+            #         if inf:
+            #             inf.steps_completed = i + 1
+            #
+            #             if loop and loop.is_running():
+            #                 asyncio.run_coroutine_threadsafe(
+            #                     worker._set_inference_req(promise_id, inf), loop
+            #                 )
+            #
+            #     return callback_kwargs
+
+            image = sdxl(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                guidance_scale=guidance_scale,
+                width=width,
+                height=height,
+                generator=generator,
+                # callback_on_step_end=progress_callback,
+            ).images[0]
+
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+
+            return buffer.getvalue()
