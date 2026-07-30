@@ -53,6 +53,8 @@ async def imagen_status(
     live_inf_status = sdxl.get_inference_status(promise_id)
     if live_inf_status:
         image_metadata.steps_status = live_inf_status
+    if not image_metadata.steps_status:
+        image_metadata.steps_status = "{}"
     return image_metadata
 
 
