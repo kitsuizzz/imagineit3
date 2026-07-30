@@ -15,6 +15,7 @@ dependencies = [
     "minio",
     "valkey",
     "huggingface_hub[cli]",
+    "diffusers",
     "mlx; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "regex; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "transformers; sys_platform == 'linux' or sys_platform == 'win32'",
