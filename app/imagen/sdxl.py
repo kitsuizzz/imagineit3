@@ -6,7 +6,6 @@ import platform
 
 from fastapi import FastAPI
 from sqlalchemy import select
-from sqlalchemy.engine import result
 from tqdm.std import tqdm
 import numpy as np
 import io
@@ -17,6 +16,13 @@ from app.database.minio import upload_image
 from app.database.models import Image
 
 IS_APPLE_METAL = platform.machine().lower() == "arm64"
+
+if IS_APPLE_METAL:
+    from imagen.metal.stable_diffusion import StableDiffusionXL  # type ignore
+    import mlx.core as mx  # type ignore
+else:
+    import torch  # type: ignore
+    from diffusers import StableDiffusionXLPipeline  # type: ignore
 
 
 def init_sdxl(app: FastAPI, model: str):
@@ -64,7 +70,11 @@ class DedicatedSDXLWorker:
             async with self._inference_requests_lock:
                 self._inference_requests[promise_id] = req
 
-        asyncio.run_coroutine_threadsafe(_(), self._event_loop)
+        if asyncio.get_event_loop() == self._event_loop:
+            await _()
+        else:
+            tf = asyncio.run_coroutine_threadsafe(_(), self._event_loop)
+            await asyncio.wrap_future(tf)
 
     async def _pop_inference_req(self, promise_id) -> InferenceRequest | None:
         async def _():
@@ -164,16 +174,28 @@ class DedicatedSDXLWorker:
         pass
 
 
+# pyright: reportUnboundVariable=false
 class LoadedSDXL:
     def __init__(self, app: FastAPI, model: str):
         self._sdxl = None
         if IS_APPLE_METAL:
-            from imagen.metal.stable_diffusion import StableDiffusionXL
-            import mlx.core as mx
-
             mx.set_cache_limit(1 * 1024 * 1024 * 1024)
             self._sdxl = StableDiffusionXL(model=model, float16=True)
             self._sdxl.ensure_models_are_loaded()
+        else:
+            import torch  # type: ignore
+            from diffusers import StableDiffusionXLPipeline  # type: ignore
+
+            self.device = (
+                "cuda"
+                if torch.cuda.is_available()
+                else "xpu"
+                if torch.xpu.is_available()
+                else "cpu"
+            )
+            self._sdxl = StableDiffusionXLPipeline.from_pretrained(
+                model, torch_dtype=torch.float16
+            ).to(self.device)
 
     async def infer(
         self,
@@ -188,12 +210,9 @@ class LoadedSDXL:
         height: int,
     ):
         if IS_APPLE_METAL:
-            from imagen.metal.stable_diffusion import StableDiffusionXL
-            import mlx.core as mx
-
             if not self._sdxl:
                 raise ValueError()
-            sdxl: StableDiffusionXL = self._sdxl
+            sdxl: StableDiffusionXL = self._sdxl  # type: ignore
             latents = sdxl.generate_latents(
                 prompt,
                 negative_text=negative_prompt,
@@ -226,3 +245,43 @@ class LoadedSDXL:
             pil_img.save(buffer, format="PNG")  # Or "JPEG"
             encoded_bytes = buffer.getvalue()
             return encoded_bytes
+        else:
+            if not self._sdxl:
+                raise ValueError()
+
+            generator = torch.Generator(device=self.device).manual_seed(seed)
+            sdxl: StableDiffusionXLPipeline = self._sdxl
+
+            # ✅ TODID: Fix inference_requests not being sent properly
+            # try:
+            #     loop = asyncio.get_running_loop()
+            # except RuntimeError:
+            #     loop = None
+            #
+            def progress_callback(pipe, i, t, callback_kwargs):
+                asyncio.run_coroutine_threadsafe(asyncio.sleep(0), worker._event_loop)
+                if worker.inference_requests:
+                    inf = worker.inference_requests.get(promise_id)
+                    if inf:
+                        inf.steps_completed = i + 1
+                        asyncio.run_coroutine_threadsafe(
+                            worker._set_inference_req(promise_id, inf),
+                            worker._event_loop,
+                        )
+
+                return callback_kwargs
+
+            image = sdxl(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                guidance_scale=guidance_scale,
+                width=width,
+                height=height,
+                generator=generator,
+                callback_on_step_end=progress_callback,
+            ).images[0]
+
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+
+            return buffer.getvalue()
