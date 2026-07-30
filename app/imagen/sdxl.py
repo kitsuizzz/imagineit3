@@ -1,13 +1,11 @@
 from dataclasses import dataclass
 import json
-import torch
 import threading
 import asyncio
 import platform
 
 from fastapi import FastAPI
 from sqlalchemy import select
-from sqlalchemy.engine import result
 from tqdm.std import tqdm
 import numpy as np
 import io
@@ -169,14 +167,15 @@ class LoadedSDXL:
     def __init__(self, app: FastAPI, model: str):
         self._sdxl = None
         if IS_APPLE_METAL:
-            from imagen.metal.stable_diffusion import StableDiffusionXL
-            import mlx.core as mx
+            from imagen.metal.stable_diffusion import StableDiffusionXL  # type ignore
+            import mlx.core as mx  # type ignore
 
             mx.set_cache_limit(1 * 1024 * 1024 * 1024)
             self._sdxl = StableDiffusionXL(model=model, float16=True)
             self._sdxl.ensure_models_are_loaded()
         else:
-            from diffusers import StableDiffusionXLPipeline
+            import torch  # type: ignore
+            from diffusers import StableDiffusionXLPipeline  # type: ignore
 
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
             self._sdxl = StableDiffusionXLPipeline.from_pretrained(
@@ -196,12 +195,12 @@ class LoadedSDXL:
         height: int,
     ):
         if IS_APPLE_METAL:
-            from imagen.metal.stable_diffusion import StableDiffusionXL
-            import mlx.core as mx
+            from imagen.metal.stable_diffusion import StableDiffusionXL  # type: ignore
+            import mlx.core as mx  # type: ignore
 
             if not self._sdxl:
                 raise ValueError()
-            sdxl: StableDiffusionXL = self._sdxl
+            sdxl: StableDiffusionXL = self._sdxl  # type: ignore
             latents = sdxl.generate_latents(
                 prompt,
                 negative_text=negative_prompt,
@@ -235,7 +234,8 @@ class LoadedSDXL:
             encoded_bytes = buffer.getvalue()
             return encoded_bytes
         else:
-            from diffusers import StableDiffusionXLPipeline
+            import torch  # type: ignore
+            from diffusers import StableDiffusionXLPipeline  # type: ignore
 
             if not self._sdxl:
                 raise ValueError()
