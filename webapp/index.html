@@ -734,8 +734,28 @@
 
   <!-- Interaction Logic -->
   <script>
+    // Cookie Helper Functions
+    function setCookie(name, value, days = 30) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      const expires = "; expires=" + date.toUTCString();
+      document.cookie = name + "=" + (encodeURIComponent(value) || "") + expires + "; path=/; SameSite=Lax";
+    }
+
+    function getCookie(name) {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+      }
+      return null;
+    }
+
     // Global Configuration
     let BACKEND_URL = 'http://localhost:4600'; // Default fallback
+    const SETTINGS_COOKIE_NAME = "imagineit_settings";
 
     // Dynamic configuration loader supporting window.ENV, env.json, and localStorage
     async function initConfig() {
@@ -871,8 +891,67 @@
       setRandomMode(e.target.checked);
     });
 
+    // Save current parameters state to cookie
+    function saveSettingsToCookie() {
+      const settings = {
+        prompt: document.getElementById('prompt').value,
+        negative_prompt: document.getElementById('negative-prompt').value,
+        steps: stepsRange.value,
+        cfg: cfgRange.value,
+        width: widthRange.value,
+        height: heightRange.value,
+        isRandom: isRandom,
+        seed: seedInput.value
+      };
+      setCookie(SETTINGS_COOKIE_NAME, JSON.stringify(settings), 30);
+    }
+
+    // Load state from cookie with safe fallbacks
+    function loadSettingsFromCookie() {
+      const saved = getCookie(SETTINGS_COOKIE_NAME);
+      if (!saved) {
+        setRandomMode(true); // Default fallback on first launch
+        return;
+      }
+      try {
+        const settings = JSON.parse(saved);
+        if (settings.prompt !== undefined) document.getElementById('prompt').value = settings.prompt;
+        if (settings.negative_prompt !== undefined) document.getElementById('negative-prompt').value = settings.negative_prompt;
+        if (settings.steps !== undefined) {
+          stepsRange.value = settings.steps;
+          stepsVal.textContent = settings.steps;
+        }
+        if (settings.cfg !== undefined) {
+          cfgRange.value = settings.cfg;
+          cfgVal.textContent = parseFloat(settings.cfg).toFixed(1);
+        }
+        if (settings.width !== undefined) {
+          widthRange.value = settings.width;
+          widthVal.textContent = `${settings.width} px`;
+        }
+        if (settings.height !== undefined) {
+          heightRange.value = settings.height;
+          heightVal.textContent = `${settings.height} px`;
+        }
+        if (settings.isRandom !== undefined) {
+          setRandomMode(settings.isRandom);
+        } else {
+          setRandomMode(true);
+        }
+        if (settings.seed !== undefined && !settings.isRandom) {
+          seedInput.value = settings.seed;
+        }
+      } catch (e) {
+        console.error("Error parsing saved settings cookie:", e);
+        setRandomMode(true); // Graceful recovery
+      }
+    }
+
     // Main Submit Action Trigger (Live REST API Mode)
     async function triggerInferenceSubmit() {
+      // Save settings to cookie upon submission
+      saveSettingsToCookie();
+
       // Clear previous canvas errors/actions and show canvas section
       clearInterval(pollInterval);
       errorWrapper.style.display = 'none';
@@ -1080,13 +1159,32 @@
     // Bind execution trigger to "ImagineIt" submit button
     btnSubmitImagine.addEventListener('click', triggerInferenceSubmit);
 
+    // Bind change listeners on all input nodes to automatically save to cookie in real-time
+    const elementsToWatch = [
+      document.getElementById('prompt'),
+      document.getElementById('negative-prompt'),
+      stepsRange,
+      cfgRange,
+      widthRange,
+      heightRange,
+      btnRandomCheckbox,
+      seedInput
+    ];
+
+    elementsToWatch.forEach(element => {
+      element.addEventListener('change', saveSettingsToCookie);
+    });
+
     // Run Initial Setups asynchronously to allow configuration resolving first
     initConfig().then(() => {
+      // Load saved settings from cookies if available, otherwise apply fallbacks
+      loadSettingsFromCookie();
+
+      // Render correct gradient slider track colors
       updateSliderTrack(stepsRange);
       updateSliderTrack(cfgRange);
       updateSliderTrack(widthRange);
       updateSliderTrack(heightRange);
-      setRandomMode(true); // Default to toggled Random ON on launch
     });
   </script>
 </body>
