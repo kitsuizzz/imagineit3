@@ -1082,21 +1082,19 @@
       }, 250);
     }
 
-    // Step 3 loading raw image bytes with dynamic 404 retry-polling mechanism
-    async function fetchFinalImageBytes(promiseId, attempt = 1) {
-      const maxRetries = 5;
+    // Step 3 loading raw image bytes with dynamic infinite 404 retry-polling mechanism
+    async function fetchFinalImageBytes(promiseId) {
       const retryDelay = 1500; // milliseconds to wait between retries
       
-      renderSteps.textContent = "Finalizing image output...";
+      renderSteps.textContent = "Waiting for image...";
       
       try {
         const imageRes = await fetch(`${BACKEND_URL}/api/v3/images/${promiseId}`);
         
         // Handle 404 status (file exists in DB but may still be writing to disk storage)
-        if (imageRes.status === 404 && attempt <= maxRetries) {
-          renderSteps.textContent = `Image not ready yet, retrying... (${attempt}/${maxRetries})`;
+        if (imageRes.status === 404) {
           await new Promise(resolve => setTimeout(resolve, retryDelay));
-          return fetchFinalImageBytes(promiseId, attempt + 1);
+          return fetchFinalImageBytes(promiseId);
         }
         
         if (!imageRes.ok) {
