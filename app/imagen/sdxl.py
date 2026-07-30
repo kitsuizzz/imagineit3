@@ -177,7 +177,16 @@ class LoadedSDXL:
             self._sdxl = StableDiffusionXL(model=model, float16=True)
             self._sdxl.ensure_models_are_loaded()
         else:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            import torch  # type: ignore
+            from diffusers import StableDiffusionXLPipeline  # type: ignore
+
+            self.device = (
+                "cuda"
+                if torch.cuda.is_available()
+                else "xpu"
+                if torch.xpu.is_available()
+                else "cpu"
+            )
             self._sdxl = StableDiffusionXLPipeline.from_pretrained(
                 model, torch_dtype=torch.float16
             ).to(self.device)
