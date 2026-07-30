@@ -201,7 +201,7 @@ class LoadedSDXL:
                 cfg_weight=guidance_scale,
                 num_steps=steps,
                 seed=seed,
-                latent_size=(width // 8, height // 8),
+                latent_size=(height // 8, width // 8),
             )
             final_latent = None
             i = 1
