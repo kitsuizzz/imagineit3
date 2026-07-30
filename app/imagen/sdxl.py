@@ -24,6 +24,7 @@ else:
     import torch  # type: ignore
     from diffusers import StableDiffusionXLPipeline  # type: ignore
 
+
 def init_sdxl(app: FastAPI, model: str):
     app.state.sdxl = DedicatedSDXLWorker(app, model)
     app.state.sdxl.start()
@@ -69,7 +70,11 @@ class DedicatedSDXLWorker:
             async with self._inference_requests_lock:
                 self._inference_requests[promise_id] = req
 
-        asyncio.run_coroutine_threadsafe(_(), self._event_loop)
+        if asyncio.get_event_loop() == self._event_loop:
+            await _()
+        else:
+            tf = asyncio.run_coroutine_threadsafe(_(), self._event_loop)
+            await asyncio.wrap_future(tf)
 
     async def _pop_inference_req(self, promise_id) -> InferenceRequest | None:
         async def _():
@@ -252,18 +257,18 @@ class LoadedSDXL:
             # except RuntimeError:
             #     loop = None
             #
-            # def progress_callback(pipe, i, t, callback_kwargs):
-            #     if worker.inference_requests:
-            #         inf = worker.inference_requests.get(promise_id)
-            #         if inf:
-            #             inf.steps_completed = i + 1
-            #
-            #             if loop and loop.is_running():
-            #                 asyncio.run_coroutine_threadsafe(
-            #                     worker._set_inference_req(promise_id, inf), loop
-            #                 )
-            #
-            #     return callback_kwargs
+            def progress_callback(pipe, i, t, callback_kwargs):
+                asyncio.run_coroutine_threadsafe(asyncio.sleep(0), worker._event_loop)
+                if worker.inference_requests:
+                    inf = worker.inference_requests.get(promise_id)
+                    if inf:
+                        inf.steps_completed = i + 1
+                        asyncio.run_coroutine_threadsafe(
+                            worker._set_inference_req(promise_id, inf),
+                            worker._event_loop,
+                        )
+
+                return callback_kwargs
 
             image = sdxl(
                 prompt=prompt,
@@ -272,7 +277,7 @@ class LoadedSDXL:
                 width=width,
                 height=height,
                 generator=generator,
-                # callback_on_step_end=progress_callback,
+                callback_on_step_end=progress_callback,
             ).images[0]
 
             buffer = io.BytesIO()
