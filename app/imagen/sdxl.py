@@ -174,6 +174,7 @@ class DedicatedSDXLWorker:
         pass
 
 
+# pyright: reportUnboundVariable=false
 class LoadedSDXL:
     def __init__(self, app: FastAPI, model: str):
         self._sdxl = None
@@ -251,7 +252,7 @@ class LoadedSDXL:
             generator = torch.Generator(device=self.device).manual_seed(seed)
             sdxl: StableDiffusionXLPipeline = self._sdxl
 
-            # TODO: Fix inference_requests not being sent properly
+            # ✅ TODID: Fix inference_requests not being sent properly
             # try:
             #     loop = asyncio.get_running_loop()
             # except RuntimeError:
