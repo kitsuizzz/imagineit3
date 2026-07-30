@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ImagineIt</title>
+  <!-- Modern Clean Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Design Variables */
+    :root {
+      --bg-dark: #04020a;
+      --card-bg: rgba(11, 8, 25, 0.55);
+      --card-border: rgba(255, 255, 255, 0.07);
+      --input-bg: rgba(4, 2, 11, 0.7);
+      --input-border: rgba(255, 255, 255, 0.05);
+      --text-main: #f8fafc;
+      --text-muted: #64748b;
+      --text-label: #94a3b8;
+      --accent-cyan: #06b6d4;
+      --accent-purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 3rem 1rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Decorative Background Blurs */
+    .ambient-glow-1 {
+      position: absolute;
+      top: 15%;
+      left: 20%;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .ambient-glow-2 {
+      position: absolute;
+      bottom: 15%;
+      right: 20%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* App Wrapper Layout */
+    .app-container {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Styled Title */
+    h1.brand-title {
+      font-size: 3.25rem;
+      font-weight: 800;
+      margin-bottom: 2.5rem;
+      letter-spacing: -0.04em;
+      text-align: center;
+      background: linear-gradient(135deg, #ffffff 40%, rgba(255, 255, 255, 0.6) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Main parameters card */
+    .control-panel {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1.5rem;
+      padding: 2.5rem;
+      box-shadow: 
+        0 30px 60px -15px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(24px) saturate(140%);
+    }
+
+    /* Form Section Layouts */
+    .row {
+      margin-bottom: 1.75rem;
+    }
+
+    .label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-label);
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    /* Custom Textarea styling */
+    textarea {
+      width: 100%;
+      background-color: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 0.875rem;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.9375rem;
+      padding: 1.25rem;
+      resize: none;
+      outline: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    textarea:focus {
+      border-color: rgba(6, 182, 212, 0.4);
+      background-color: rgba(4, 2, 11, 0.9);
+      box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(6, 182, 212, 0.08);
+    }
+
+    .prompt-box {
+      height: 150px;
+    }
+
+    .negative-box {
+      height: 72px;
+    }
+
+    textarea::placeholder {
+      color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Grid layout for settings controls */
+    .grid-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2.25rem;
+      margin-top: 2.25rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Grid layout specifically for Dimensions */
+    .dimensions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.25rem;
+      margin-top: 1.75rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Active dynamic parameter outputs */
+    .val-indicator {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      border-bottom: 1.5px dashed rgba(6, 182, 212, 0.4);
+      padding-bottom: 1px;
+    }
+
+    /* Custom Input Range styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background-color: var(--text-main);
+      cursor: pointer;
+      margin-top: -4.5px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+      background-color: var(--accent-cyan);
+      box-shadow: 0 0 14px rgba(6, 182, 212, 0.8);
+    }
+
+    /* Helper Texts description */
+    .help-description {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-top: 0.75rem;
+    }
+
+    /* Premium Custom Switch Toggle styling */
+    .switch-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      user-select: none;
+    }
+
+    .toggle-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 34px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .switch-slider::before {
+      position: absolute;
+      content: "";
+      height: 12px;
+      width: 12px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--text-muted);
+      border-radius: 50%;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Toggle Switch checked states */
+    .switch input:checked + .switch-slider {
+      background-color: rgba(6, 182, 212, 0.15);
+      border-color: rgba(6, 182, 212, 0.4);
+    }
+
+    .switch input:checked + .switch-slider::before {
+      transform: translateX(16px);
+      background-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+    }
+
+    /* Toggle active text label adjustment */
+    .switch-container.active .toggle-label {
+      color: var(--text-main);
+    }
+
+    /* Styled input text field for Seed numericals */
+    .seed-input-field {
+      width: 100%;
+      background-color: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 0.5rem;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 0.625rem 0.875rem;
+      outline: none;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s;
+    }
+
+    .seed-input-field:focus {
+      border-color: rgba(6, 182, 212, 0.4);
+      box-shadow: 
+        inset 0 1px 3px rgba(0, 0, 0, 0.5),
+        0 0 12px rgba(6, 182, 212, 0.08);
+    }
+
+    /* Disabled/Grayed-out mode for random toggled seeds */
+    .seed-input-field:disabled {
+      background-color: rgba(4, 2, 11, 0.3);
+      border-color: rgba(255, 255, 255, 0.02);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .seed-input-field::placeholder {
+      color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Primary Submit "ImagineIt" Button */
+    .btn-submit-main {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
+      border: none;
+      border-radius: 0.875rem;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 1.15rem;
+      cursor: pointer;
+      margin-top: 2.25rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.625rem;
+    }
+
+    .btn-submit-main:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(6, 182, 212, 0.45);
+      filter: brightness(1.05);
+    }
+
+    .btn-submit-main:active {
+      transform: translateY(1px);
+    }
+
+    .btn-submit-main:disabled {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Embedded loading indicator for the submit button */
+    .btn-spinner {
+      display: none;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-top: 2px solid currentColor;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: rotate 1s linear infinite;
+    }
+
+    /* Live Canvas Preview Area Styles */
+    .canvas-container {
+      width: 100%;
+      max-width: 960px;
+      margin-top: 2.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1.5rem;
+      padding: 2.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(24px) saturate(140%);
+      display: none; /* Controlled dynamically in JS */
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    /* The viewport dynamically matches user-configured Aspect Ratio */
+    .preview-viewport {
+      width: 100%;
+      max-width: 512px;
+      aspect-ratio: 1 / 1; /* Configured dynamically */
+      background-color: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Glowing outline for active generation */
+    .preview-viewport.rendering {
+      border-color: rgba(6, 182, 212, 0.4);
+      box-shadow: 
+        inset 0 4px 12px rgba(0, 0, 0, 0.6),
+        0 0 30px rgba(6, 182, 212, 0.15);
+    }
+
+    /* Skeletal scanning grid animation */
+    .viewport-skeleton {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, #100b26 25%, #181238 50%, #100b26 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      z-index: 1;
+    }
+
+    /* Final generated image style */
+    .viewport-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.6s ease-in-out;
+    }
+
+    .viewport-image.active {
+      opacity: 1;
+    }
+
+    /* Progress Display Overlay inside viewport */
+    .progress-overlay {
+      position: absolute;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .progress-percentage {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      text-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .progress-metrics {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    }
+
+    .linear-progress-track {
+      width: 140px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .linear-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+      border-radius: 2px;
+      transition: width 0.2s ease-out;
+    }
+
+    /* Download panel displaying after success */
+    .post-generation-actions {
+      display: none;
+      gap: 1rem;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--border-hover);
+    }
+
+    /* Error Visual Module styling */
+    .error-wrapper {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.75rem;
+      max-width: 420px;
+      padding: 1rem;
+    }
+
+    .error-icon {
+      color: #ef4444;
+    }
+
+    .error-headline {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fca5a5;
+    }
+
+    .error-reason {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* General Spinner rotation */
+    @keyframes rotate {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive scaling behavior */
+    @media (max-width: 768px) {
+      .grid-controls, .dimensions-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      .control-panel, .canvas-container {
+        padding: 1.5rem;
+      }
+      h1.brand-title {
+        font-size: 2.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Blurred Aesthetic Backlighting Elements -->
+  <div class="ambient-glow-1"></div>
+  <div class="ambient-glow-2"></div>
+
+  <!-- Primary Wrapper -->
+  <div class="app-container">
+    
+    <h1 class="brand-title">ImagineIt</h1>
+
+    <main class="control-panel">
+      
+      <!-- Prompts Row -->
+      <div class="row">
+        <label class="label" for="prompt">Prompts</label>
+        <textarea id="prompt" class="prompt-box" placeholder="Image generation prompt..."></textarea>
+      </div>
+
+      <!-- Negative Prompts Row -->
+      <div class="row">
+        <label class="label" for="negative-prompt">Negative Prompt</label>
+        <textarea id="negative-prompt" class="negative-box" placeholder="Avoid elements (e.g. blurry, low quality, distorted, deformed)..."></textarea>
+      </div>
+
+      <!-- Settings Grid -->
+      <div class="grid-controls">
+        
+        <!-- Steps Setting -->
+        <div class="col">
+          <div class="control-header">
+            <span class="label" style="margin-bottom: 0;">Steps</span>
+            <span class="val-indicator" id="steps-val">28</span>
+          </div>
+          <input type="range" id="steps-range" min="0" max="64" value="28">
+          <p class="help-description">Higher steps increase detail and clarity but take longer (0-64).</p>
+        </div>
+
+        <!-- CFG Scale Setting -->
+        <div class="col">
+          <div class="control-header">
+            <span class="label" style="margin-bottom: 0;">CFG Scale</span>
+            <span class="val-indicator" id="cfg-val">5.0</span>
+          </div>
+          <input type="range" id="cfg-range" min="1.0" max="10.0" step="0.1" value="5.0">
+          <p class="help-description">How strongly the generator adheres to your prompt (1.0-10.0).</p>
+        </div>
+
+        <!-- Seed Setting -->
+        <div class="col">
+          <div class="control-header">
+            <span class="label" style="margin-bottom: 0;">Seed</span>
+            <div class="switch-container" id="switch-container">
+              <span class="toggle-label">Random</span>
+              <label class="switch">
+                <input type="checkbox" id="btn-random-checkbox">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+          </div>
+          <input type="text" id="seed-input" class="seed-input-field" placeholder="e.g. 42">
+          <p class="help-description">Enter any number to reproduce specific image layouts.</p>
+        </div>
+
+      </div>
+
+      <!-- Dimensions Grid -->
+      <div class="dimensions-grid">
+        
+        <!-- Width Slider -->
+        <div class="col">
+          <div class="control-header">
+            <span class="label" style="margin-bottom: 0;">Width</span>
+            <span class="val-indicator" id="width-val">512 px</span>
+          </div>
+          <input type="range" id="width-range" min="256" max="1536" step="64" value="512">
+          <p class="help-description">Choose the output image width. Snaps automatically to multiples of 64px.</p>
+        </div>
+
+        <!-- Height Slider -->
+        <div class="col">
+          <div class="control-header">
+            <span class="label" style="margin-bottom: 0;">Height</span>
+            <span class="val-indicator" id="height-val">512 px</span>
+          </div>
+          <input type="range" id="height-range" min="256" max="1536" step="64" value="512">
+          <p class="help-description">Choose the output image height. Snaps automatically to multiples of 64px.</p>
+        </div>
+
+      </div>
+
+      <!-- Main "ImagineIt" Submit Button -->
+      <button class="btn-submit-main" id="btn-submit-imagine">
+        <div class="btn-spinner" id="submit-spinner"></div>
+        <!-- Sparkle SVG Icon -->
+        <svg id="submit-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        <span id="submit-text">ImagineIt</span>
+      </button>
+
+    </main>
+
+    <!-- Live Canvas Preview Card Container -->
+    <section class="canvas-container" id="canvas-container">
+      
+      <!-- Rendering viewport -->
+      <div class="preview-viewport" id="preview-viewport">
+        
+        <!-- Live status percentages and metric bars -->
+        <div class="progress-overlay" id="progress-overlay">
+          <span class="progress-percentage" id="render-percent">0%</span>
+          <span class="progress-metrics" id="render-steps">Preparing inference...</span>
+          <div class="linear-progress-track">
+            <div class="linear-progress-fill" id="render-progress-bar"></div>
+          </div>
+        </div>
+
+        <!-- Shimmer loading background grid -->
+        <div class="viewport-skeleton" id="viewport-shimmer"></div>
+
+        <!-- Rendered Image -->
+        <img src="" alt="Output render result" class="viewport-image" id="viewport-image">
+
+      </div>
+
+      <!-- Actions appearing post-render success -->
+      <div class="post-generation-actions" id="post-generation-actions">
+        <a href="#" class="btn-secondary" id="btn-download" download="imagined-artwork.png">
+          <!-- Download SVG Icon -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Download PNG
+        </a>
+        <button class="btn-secondary" id="btn-fullscreen">
+          <!-- Fullscreen External SVG Icon -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+          Open In New Tab
+        </button>
+      </div>
+
+      <!-- Clean Error Visual Module -->
+      <div class="error-wrapper" id="error-wrapper">
+        <svg class="error-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        <span class="error-headline">Connection Error</span>
+        <span class="error-reason" id="error-message">Could not connect to the local inference backend server. Make sure it is running.</span>
+      </div>
+
+    </section>
+
+  </div>
+
+  <!-- Toast Simulation Notification -->
+  <div class="feedback-toast" id="feedback-toast">
+    <div class="micro-spinner"></div>
+    <span id="toast-message">Rendering prompt sequence...</span>
+  </div>
+
+  <!-- Interaction Logic -->
+  <script>
+    // Config controls selection
+    const stepsRange = document.getElementById('steps-range');
+    const stepsVal = document.getElementById('steps-val');
+    const cfgRange = document.getElementById('cfg-range');
+    const cfgVal = document.getElementById('cfg-val');
+    const widthRange = document.getElementById('width-range');
+    const widthVal = document.getElementById('width-val');
+    const heightRange = document.getElementById('height-range');
+    const heightVal = document.getElementById('height-val');
+    const seedInput = document.getElementById('seed-input');
+    
+    // Switch Toggle & Submit button UI
+    const btnRandomCheckbox = document.getElementById('btn-random-checkbox');
+    const switchContainer = document.getElementById('switch-container');
+    const btnSubmitImagine = document.getElementById('btn-submit-imagine');
+    const submitText = document.getElementById('submit-text');
+    const submitIcon = document.getElementById('submit-icon');
+    const submitSpinner = document.getElementById('submit-spinner');
+    
+    // Live Canvas Preview elements selection
+    const canvasContainer = document.getElementById('canvas-container');
+    const previewViewport = document.getElementById('preview-viewport');
+    const viewportShimmer = document.getElementById('viewport-shimmer');
+    const viewportImage = document.getElementById('viewport-image');
+    const progressOverlay = document.getElementById('progress-overlay');
+    const renderPercent = document.getElementById('render-percent');
+    const renderSteps = document.getElementById('render-steps');
+    const renderProgressBar = document.getElementById('render-progress-bar');
+    const postActions = document.getElementById('post-generation-actions');
+    const btnDownload = document.getElementById('btn-download');
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    const errorWrapper = document.getElementById('error-wrapper');
+    const errorMessage = document.getElementById('error-message');
+
+    // Toast UI
+    const feedbackToast = document.getElementById('feedback-toast');
+    const toastMsg = document.getElementById('toast-message');
+
+    // State variable for seed mode
+    let isRandom = true;
+    let pollInterval = null;
+
+    // Safety multiplier check function
+    function snapTo64(val) {
+      return Math.max(64, Math.round(val / 64) * 64);
+    }
+
+    // Dynamic gradient range updates
+    function updateSliderTrack(slider) {
+      const min = parseFloat(slider.min);
+      const max = parseFloat(slider.max);
+      const val = parseFloat(slider.value);
+      const percentage = ((val - min) / (max - min)) * 100;
+      
+      slider.style.background = `linear-gradient(to right, var(--accent-cyan) 0%, var(--accent-cyan) ${percentage}%, var(--input-bg) ${percentage}%, var(--input-bg) 100%)`;
+    }
+
+    // Input slider event listeners
+    stepsRange.addEventListener('input', (e) => {
+      stepsVal.textContent = e.target.value;
+      updateSliderTrack(stepsRange);
+    });
+    
+    cfgRange.addEventListener('input', (e) => {
+      cfgVal.textContent = parseFloat(e.target.value).toFixed(1);
+      updateSliderTrack(cfgRange);
+    });
+
+    widthRange.addEventListener('input', (e) => {
+      widthVal.textContent = `${e.target.value} px`;
+      updateSliderTrack(widthRange);
+    });
+
+    heightRange.addEventListener('input', (e) => {
+      heightVal.textContent = `${e.target.value} px`;
+      updateSliderTrack(heightRange);
+    });
+
+    // Toggle Random seed mode logic
+    function setRandomMode(enabled) {
+      isRandom = enabled;
+      btnRandomCheckbox.checked = enabled;
+      if (isRandom) {
+        switchContainer.classList.add('active');
+        const randomSeed = Math.floor(Math.random() * 1000000000);
+        seedInput.value = randomSeed;
+        seedInput.disabled = true;
+      } else {
+        switchContainer.classList.remove('active');
+        // Do not clear the existing value; keep it editable
+        seedInput.disabled = false;
+        seedInput.placeholder = "e.g. 42";
+      }
+    }
+
+    // Bind event for switch change
+    btnRandomCheckbox.addEventListener('change', (e) => {
+      setRandomMode(e.target.checked);
+    });
+
+    // Main Submit Action Trigger (Live REST API Mode)
+    async function triggerInferenceSubmit() {
+      // Clear previous canvas errors/actions and show canvas section
+      clearInterval(pollInterval);
+      errorWrapper.style.display = 'none';
+      postActions.style.display = 'none';
+      viewportImage.classList.remove('active');
+      viewportImage.src = "";
+      progressOverlay.style.display = 'flex';
+      viewportShimmer.style.display = 'block';
+      
+      // Setup dynamic CSS aspect ratio container matching user inputs
+      const finalWidth = snapTo64(parseInt(widthRange.value, 10));
+      const finalHeight = snapTo64(parseInt(heightRange.value, 10));
+      previewViewport.style.aspectRatio = `${finalWidth} / ${finalHeight}`;
+      
+      canvasContainer.style.display = 'flex';
+      previewViewport.classList.add('rendering');
+      
+      // Scroll smoothly down into canvas container view
+      canvasContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+      // Build parameters payload mirroring ImagenRequest Pydantic scheme
+      const seedVal = parseInt(seedInput.value, 10);
+      const payload = {
+        prompt: document.getElementById('prompt').value || "A beautiful cybernetic concept art",
+        negative_prompt: document.getElementById('negative-prompt').value || null,
+        width: finalWidth,
+        height: finalHeight,
+        cfg: parseFloat(cfgRange.value),
+        steps: parseInt(stepsRange.value, 10),
+        seed: isNaN(seedVal) ? null : seedVal
+      };
+
+      // Disable inputs and change submit button state
+      btnSubmitImagine.disabled = true;
+      submitIcon.style.display = 'none';
+      submitSpinner.style.display = 'block';
+      submitText.textContent = "Processing...";
+
+      // Display status toast update
+      feedbackToast.classList.add('active');
+      toastMsg.textContent = "Initiating rendering steps...";
+
+      // Reset live progress variables
+      renderPercent.textContent = "0%";
+      renderSteps.textContent = "Preparing inference...";
+      renderProgressBar.style.width = "0%";
+
+      try {
+        // Step 1: POST request. 
+        // Sending standard application/json payload now that CORS settings are updated.
+        const createRes = await fetch('http://localhost:4600/api/v3/images/inferences', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!createRes.ok) {
+          throw new Error(`Inference call failed: ${createRes.status} ${createRes.statusText}`);
+        }
+
+        const createData = await createRes.json();
+        const promiseId = createData.promise_id;
+        
+        if (!promiseId) {
+          throw new Error("No promise_id was returned by the inference server.");
+        }
+
+        // Display status toast update
+        toastMsg.textContent = "Processing diffusion vectors...";
+
+        // Step 2: Establish intervals to poll rendering progress (GET)
+        pollInferenceProgress(promiseId);
+
+      } catch (err) {
+        showVisualError(err.message);
+      }
+    }
+
+    // Step 2 polling loop implementation (250ms checkups)
+    function pollInferenceProgress(promiseId) {
+      pollInterval = setInterval(async () => {
+        try {
+          const progressRes = await fetch(`http://localhost:4600/api/v3/images/inferences/${promiseId}`);
+          if (!progressRes.ok) {
+            throw new Error(`Progress tracking request failed (${progressRes.status})`);
+          }
+
+          // Read response as JSON object
+          const progressData = await progressRes.json();
+
+          // Check if "steps_status" key exists in the JSON response
+          if (progressData && typeof progressData.steps_status !== 'undefined') {
+            const progressText = progressData.steps_status; // e.g. "14/28"
+            const progressParts = progressText.split('/');
+
+            if (progressParts.length === 2) {
+              const currentStep = parseInt(progressParts[0], 10);
+              const totalStepsCount = parseInt(progressParts[1], 10);
+              const rawPercent = totalStepsCount > 0 ? (currentStep / totalStepsCount) : 0;
+              const percentageRounded = Math.round(rawPercent * 100);
+
+              // Update parameters display variables
+              renderPercent.textContent = `${percentageRounded}%`;
+              renderSteps.textContent = `Steps: ${currentStep} / ${totalStepsCount}`;
+              renderProgressBar.style.width = `${percentageRounded}%`;
+
+              // If processing reaches complete status, stop poll loop and load canvas image
+              if (currentStep >= totalStepsCount && totalStepsCount > 0) {
+                clearInterval(pollInterval);
+                fetchFinalImageBytes(promiseId);
+              }
+            } else {
+              renderSteps.textContent = progressText;
+            }
+          } else {
+            // "steps_status" key is missing, meaning inference is still prepared (i.e. {})
+            renderPercent.textContent = "0%";
+            renderSteps.textContent = "Preparing inference...";
+            renderProgressBar.style.width = "0%";
+          }
+
+        } catch (err) {
+          clearInterval(pollInterval);
+          showVisualError(`Progress tracking interrupted: ${err.message}`);
+        }
+      }, 250);
+    }
+
+    // Step 3 loading raw image bytes with dynamic 404 retry-polling mechanism
+    async function fetchFinalImageBytes(promiseId, attempt = 1) {
+      const maxRetries = 5;
+      const retryDelay = 1500; // milliseconds to wait between retries
+      
+      renderSteps.textContent = "Finalizing image output...";
+      
+      try {
+        const imageRes = await fetch(`http://localhost:4600/api/v3/images/${promiseId}`);
+        
+        // Handle 404 status (file exists in DB but may still be writing to disk storage)
+        if (imageRes.status === 404 && attempt <= maxRetries) {
+          renderSteps.textContent = `Image not ready yet, retrying... (${attempt}/${maxRetries})`;
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return fetchFinalImageBytes(promiseId, attempt + 1);
+        }
+        
+        if (!imageRes.ok) {
+          throw new Error(`Raw image payload retrieval failed (${imageRes.status})`);
+        }
+
+        const imageBlob = await imageRes.blob();
+        const tempBlobURL = URL.createObjectURL(imageBlob);
+
+        // Render success variables adjustments
+        progressOverlay.style.display = 'none';
+        viewportShimmer.style.display = 'none';
+        previewViewport.classList.remove('rendering');
+
+        // Render generated image canvas
+        viewportImage.src = tempBlobURL;
+        viewportImage.classList.add('active');
+
+        // Hook up save action bindings
+        btnDownload.href = tempBlobURL;
+        btnFullscreen.onclick = () => {
+          window.open(tempBlobURL, '_blank');
+        };
+        postActions.style.display = 'flex';
+
+        // Re-enable form configuration settings
+        reEnableInferenceForm();
+
+      } catch (err) {
+        showVisualError(err.message);
+      }
+    }
+
+    // Handles graceful styling variables resets upon REST failure
+    function showVisualError(errString) {
+      reEnableInferenceForm();
+      previewViewport.classList.remove('rendering');
+      progressOverlay.style.display = 'none';
+      viewportShimmer.style.display = 'none';
+      
+      errorMessage.textContent = errString;
+      errorWrapper.style.display = 'flex';
+    }
+
+    // Reverts submit button back to interactive mode
+    function reEnableInferenceForm() {
+      feedbackToast.classList.remove('active');
+      btnSubmitImagine.disabled = false;
+      submitSpinner.style.display = 'none';
+      submitIcon.style.display = 'block';
+      submitText.textContent = "ImagineIt";
+
+      // Refresh seed configuration value for subsequent iterations
+      if (isRandom) {
+        const freshRandomSeed = Math.floor(Math.random() * 1000000000);
+        seedInput.value = freshRandomSeed;
+      }
+    }
+
+    // Bind execution trigger to "ImagineIt" submit button
+    btnSubmitImagine.addEventListener('click', triggerInferenceSubmit);
+
+    // Run Initial Setups
+    updateSliderTrack(stepsRange);
+    updateSliderTrack(cfgRange);
+    updateSliderTrack(widthRange);
+    updateSliderTrack(heightRange);
+    setRandomMode(true); // Default to toggled Random ON on launch
+  </script>
+</body>
+</html>
