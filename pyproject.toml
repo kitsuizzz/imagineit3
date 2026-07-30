@@ -14,12 +14,66 @@ dependencies = [
     "alembic",
     "minio",
     "valkey",
-    "huggingface_hub[cli]",
-    "mlx; sys_platform == 'darwin' and platform_machine == 'arm64'",
-    "regex; sys_platform == 'darwin' and platform_machine == 'arm64'",
-    "torch; sys_platform == 'linux' or sys_platform == 'win32'",
+    "huggingface_hub",
     "transformers; sys_platform == 'linux' or sys_platform == 'win32'",
 ]
+
+[project.optional-dependencies]
+cpu = [
+    "torch",
+    "torchvision",
+]
+nvidia = [
+    "torch",
+    "torchvision",
+]
+amd = [
+    "torch",
+    "torchvision",
+]
+intel = [
+    "torch",
+    "torchvision",
+]
+metal = [
+    "mlx",
+    "regex",
+]
+
+[tool.uv.sources]
+# Instructs uv to route torch and torchvision to their dedicated hardware repositories
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "nvidia" },
+    { index = "pytorch-rocm", extra = "amd" },
+    { index = "pytorch-intel", extra = "intel" }
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "nvidia" },
+    { index = "pytorch-rocm", extra = "amd" },
+    { index = "pytorch-intel", extra = "intel" }
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm6.1"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-intel"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
