@@ -734,6 +734,43 @@
 
   <!-- Interaction Logic -->
   <script>
+    // Global Configuration
+    let BACKEND_URL = 'http://localhost:4600'; // Default fallback
+
+    // Dynamic configuration loader supporting window.ENV, env.json, and localStorage
+    async function initConfig() {
+      // Priority 1: Check window.ENV (e.g. generated dynamically by env.js)
+      if (window.ENV && window.ENV.BACKEND_URL) {
+        BACKEND_URL = window.ENV.BACKEND_URL;
+        console.log("Configured BACKEND_URL from window.ENV:", BACKEND_URL);
+        return;
+      }
+
+      // Priority 2: Attempt to fetch env.json asynchronously
+      try {
+        const res = await fetch('/env.json');
+        if (res.ok) {
+          const config = await res.json();
+          if (config.BACKEND_URL) {
+            BACKEND_URL = config.BACKEND_URL;
+            console.log("Configured BACKEND_URL from env.json:", BACKEND_URL);
+            return;
+          }
+        }
+      } catch (e) {
+        // Silent catch: env.json is not present or failed to load
+      }
+
+      // Priority 3: Check localStorage
+      const localBackend = localStorage.getItem('BACKEND_URL');
+      if (localBackend) {
+        BACKEND_URL = localBackend;
+        console.log("Configured BACKEND_URL from localStorage:", BACKEND_URL);
+      } else {
+        console.log("Using default BACKEND_URL:", BACKEND_URL);
+      }
+    }
+
     // Config controls selection
     const stepsRange = document.getElementById('steps-range');
     const stepsVal = document.getElementById('steps-val');
@@ -886,7 +923,7 @@
       try {
         // Step 1: POST request. 
         // Sending standard application/json payload now that CORS settings are updated.
-        const createRes = await fetch('http://localhost:4600/api/v3/images/inferences', {
+        const createRes = await fetch(`${BACKEND_URL}/api/v3/images/inferences`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -920,7 +957,7 @@
     function pollInferenceProgress(promiseId) {
       pollInterval = setInterval(async () => {
         try {
-          const progressRes = await fetch(`http://localhost:4600/api/v3/images/inferences/${promiseId}`);
+          const progressRes = await fetch(`${BACKEND_URL}/api/v3/images/inferences/${promiseId}`);
           if (!progressRes.ok) {
             throw new Error(`Progress tracking request failed (${progressRes.status})`);
           }
@@ -974,7 +1011,7 @@
       renderSteps.textContent = "Finalizing image output...";
       
       try {
-        const imageRes = await fetch(`http://localhost:4600/api/v3/images/${promiseId}`);
+        const imageRes = await fetch(`${BACKEND_URL}/api/v3/images/${promiseId}`);
         
         // Handle 404 status (file exists in DB but may still be writing to disk storage)
         if (imageRes.status === 404 && attempt <= maxRetries) {
@@ -1043,12 +1080,14 @@
     // Bind execution trigger to "ImagineIt" submit button
     btnSubmitImagine.addEventListener('click', triggerInferenceSubmit);
 
-    // Run Initial Setups
-    updateSliderTrack(stepsRange);
-    updateSliderTrack(cfgRange);
-    updateSliderTrack(widthRange);
-    updateSliderTrack(heightRange);
-    setRandomMode(true); // Default to toggled Random ON on launch
+    // Run Initial Setups asynchronously to allow configuration resolving first
+    initConfig().then(() => {
+      updateSliderTrack(stepsRange);
+      updateSliderTrack(cfgRange);
+      updateSliderTrack(widthRange);
+      updateSliderTrack(heightRange);
+      setRandomMode(true); // Default to toggled Random ON on launch
+    });
   </script>
 </body>
 </html>

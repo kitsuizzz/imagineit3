@@ -4,3 +4,5 @@
 .env
 .python-version
 __pycache__/
+
+webapp/env.json
