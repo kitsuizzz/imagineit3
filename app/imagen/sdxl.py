@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import sys
 import threading
 import asyncio
 import platform
@@ -23,6 +24,7 @@ if IS_APPLE_METAL:
 else:
     import torch  # type: ignore
     from diffusers import StableDiffusionXLPipeline  # type: ignore
+    from transformers.modeling_outputs import BaseModelOutputWithPooling  # type: ignore
 
 
 def init_sdxl(app: FastAPI, model: str):
@@ -261,7 +263,12 @@ class LoadedSDXL:
                     max_length=77,
                 ).input_ids.to(self.device)
                 outputs = encoder(input_ids, output_hidden_states=True)
-                return outputs.hidden_states[-2], outputs.text_embeds
+                text_embeds = (
+                    None
+                    if isinstance(outputs, BaseModelOutputWithPooling)
+                    else outputs.text_embeds
+                )
+                return outputs.hidden_states[-2], text_embeds
 
             prompt_embeds, _ = _encode_text(prompt, sdxl.text_encoder, sdxl.tokenizer)
             prompt_embeds_2, cond_pooled_text_embeds = _encode_text(
@@ -276,7 +283,7 @@ class LoadedSDXL:
                 negative_prompt, sdxl.text_encoder_2, sdxl.tokenizer_2
             )
             uncond_prompt_embeds = torch.cat(
-                [negative_prompt, neg_prompt_embeds_2], dim=-1
+                [neg_prompt_embeds, neg_prompt_embeds_2], dim=-1
             )
 
             crossattend_text_embeds = torch.cat(
@@ -297,11 +304,17 @@ class LoadedSDXL:
             }
 
             noisy_latents = torch.randn(
-                (1, 4, height // 2, width // 2), device=self.device, dtype=torch.float16
+                (1, 4, height // 8, width // 8), device=self.device, dtype=torch.float16
             )
             noisy_latents *= sdxl.scheduler.init_noise_sigma
+            sdxl.scheduler.set_timesteps(steps, device=self.device)
             step = 1
-            for t in tqdm(sdxl.scheduler.timesteps, desc="generating"):
+            for t in tqdm(
+                sdxl.scheduler.timesteps,
+                desc="generating",
+                total=steps,
+                file=sys.stdout,
+            ):
                 latent_model_input = torch.cat([noisy_latents] * 2)
                 latent_model_input = sdxl.scheduler.scale_model_input(
                     latent_model_input, t
@@ -319,20 +332,30 @@ class LoadedSDXL:
                 predicted_noise = noise_pred_uncond + guidance_scale * (
                     noise_pred_text - noise_pred_uncond
                 )
-                noisy_latents = sdxl.sheduler.step(
+                noisy_latents = sdxl.scheduler.step(
                     predicted_noise, t, noisy_latents
                 ).prev_sample
 
+                match self.device:
+                    case "cuda":
+                        torch.cuda.synchronize()
+                    case "mps":
+                        torch.mps.synchronize()
+                    case "xpu":
+                        torch.xpu.synchronize()
+
                 await asyncio.sleep(0)
+                sys.stdout.flush()
+
                 if worker.inference_requests:
                     inf = worker.inference_requests.get(promise_id)
                     if inf:
-                        inf.steps_completed = i
+                        inf.steps_completed = step
                         await worker._set_inference_req(promise_id, inf)
                 step += 1
 
             def vae_decode(vae, latents):
-                latents = latents.to(dtype=torch.float32)
+                latents = latents.to(device=vae.device, dtype=vae.dtype)
 
                 with torch.no_grad():
                     unscaled_latents = latents / vae.config.scaling_factor
