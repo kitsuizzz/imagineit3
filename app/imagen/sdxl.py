@@ -60,7 +60,6 @@ class DedicatedSDXLWorker:
 
     def _threading_loop(self):
         asyncio.set_event_loop(self._event_loop)
-        self._sdxl = LoadedSDXL(self._app, self._model)
         self._event_loop.run_until_complete(self._async_loop())
 
     async def _set_inference_req(self, promise_id: str, req: InferenceRequest):
@@ -134,6 +133,7 @@ class DedicatedSDXLWorker:
         await awaitable_db_task
 
     async def _async_loop(self):
+        self._sdxl = LoadedSDXL(self._app, self._model)
         self._queue = asyncio.Queue()
         self._semaphore = asyncio.Semaphore(4)
         self._inference_requests = {}
@@ -198,6 +198,7 @@ class LoadedSDXL:
             self._sdxl = StableDiffusionXLPipeline.from_pretrained(
                 model, torch_dtype=torch.float16
             ).to(self.device)
+            self._torch_lock: asyncio.Lock = asyncio.Lock()
 
     async def infer(
         self,
@@ -320,13 +321,14 @@ class LoadedSDXL:
                     latent_model_input, t
                 )
 
-                with torch.no_grad():
-                    output = sdxl.unet(
-                        sample=latent_model_input,
-                        timestep=t,
-                        encoder_hidden_states=crossattend_text_embeds,
-                        added_cond_kwargs=added_cond_kwargs,
-                    )
+                async with self._torch_lock:
+                    with torch.no_grad():
+                        output = sdxl.unet(
+                            sample=latent_model_input,
+                            timestep=t,
+                            encoder_hidden_states=crossattend_text_embeds,
+                            added_cond_kwargs=added_cond_kwargs,
+                        )
 
                 noise_pred_uncond, noise_pred_text = output.sample.chunk(2)
                 predicted_noise = noise_pred_uncond + guidance_scale * (
