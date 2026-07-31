@@ -164,7 +164,7 @@ class DedicatedSDXLWorker:
         """
         if not self.inference_requests:
             return None
-        inf = self.inference_requests[promise_id]
+        inf = self.inference_requests.get(promise_id)
         return None if not inf else f"{inf.steps_completed}/{inf.total_steps}"
 
     def cancel_inference():
