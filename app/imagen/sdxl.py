@@ -1,9 +1,12 @@
+import inspect
+import copy
 from dataclasses import dataclass
 import json
 import sys
 import threading
 import asyncio
 import platform
+from time import sleep
 
 from fastapi import FastAPI
 from sqlalchemy import select
@@ -11,6 +14,7 @@ from tqdm.std import tqdm
 import numpy as np
 import io
 from PIL import Image as PILImg
+from diffusers import EulerDiscreteScheduler
 
 from app.database import db_session
 from app.database.minio import upload_image
@@ -198,7 +202,7 @@ class LoadedSDXL:
             self._sdxl = StableDiffusionXLPipeline.from_pretrained(
                 model, torch_dtype=torch.float16
             ).to(self.device)
-            self._torch_lock: asyncio.Lock = asyncio.Lock()
+            self._diffusers_lock: asyncio.Lock = asyncio.Lock()
 
     async def infer(
         self,
@@ -252,9 +256,6 @@ class LoadedSDXL:
             if not self._sdxl:
                 raise ValueError()
 
-            generator = torch.Generator(device=self.device).manual_seed(seed)
-            sdxl: StableDiffusionXLPipeline = self._sdxl
-
             def _encode_text(text, encoder, tokenizer):
                 input_ids = tokenizer(
                     text,
@@ -271,6 +272,14 @@ class LoadedSDXL:
                 )
                 return outputs.hidden_states[-2], text_embeds
 
+            # generator = torch.Generator(device=self.device)
+            local_scheduler = self._sdxl.scheduler.__class__.from_config(
+                self._sdxl.scheduler.config
+            )
+            sdxl: StableDiffusionXLPipeline = StableDiffusionXLPipeline.from_pipe(
+                self._sdxl, scheduler=local_scheduler, torch_dtype=torch.float16
+            )
+            sdxl.scheduler = local_scheduler
             prompt_embeds, _ = _encode_text(prompt, sdxl.text_encoder, sdxl.tokenizer)
             prompt_embeds_2, cond_pooled_text_embeds = _encode_text(
                 prompt, sdxl.text_encoder_2, sdxl.tokenizer_2
@@ -305,11 +314,15 @@ class LoadedSDXL:
             }
 
             noisy_latents = torch.randn(
-                (1, 4, height // 8, width // 8), device=self.device, dtype=torch.float16
+                (1, 4, height // 8, width // 8),
+                device=self.device,
+                dtype=torch.float16,
             )
-            noisy_latents *= sdxl.scheduler.init_noise_sigma
             sdxl.scheduler.set_timesteps(steps, device=self.device)
+            noisy_latents *= sdxl.scheduler.init_noise_sigma
             step = 1
+            await asyncio.sleep(0)
+
             for t in tqdm(
                 sdxl.scheduler.timesteps,
                 desc="generating",
@@ -321,14 +334,13 @@ class LoadedSDXL:
                     latent_model_input, t
                 )
 
-                async with self._torch_lock:
-                    with torch.no_grad():
-                        output = sdxl.unet(
-                            sample=latent_model_input,
-                            timestep=t,
-                            encoder_hidden_states=crossattend_text_embeds,
-                            added_cond_kwargs=added_cond_kwargs,
-                        )
+                with torch.no_grad():
+                    output = sdxl.unet(
+                        sample=latent_model_input,
+                        timestep=t,
+                        encoder_hidden_states=crossattend_text_embeds,
+                        added_cond_kwargs=added_cond_kwargs,
+                    )
 
                 noise_pred_uncond, noise_pred_text = output.sample.chunk(2)
                 predicted_noise = noise_pred_uncond + guidance_scale * (
@@ -346,15 +358,14 @@ class LoadedSDXL:
                     case "xpu":
                         torch.xpu.synchronize()
 
-                await asyncio.sleep(0)
-                sys.stdout.flush()
-
                 if worker.inference_requests:
                     inf = worker.inference_requests.get(promise_id)
                     if inf:
                         inf.steps_completed = step
                         await worker._set_inference_req(promise_id, inf)
                 step += 1
+                await asyncio.sleep(0)
+                sys.stdout.flush()
 
             def vae_decode(vae, latents):
                 latents = latents.to(device=vae.device, dtype=vae.dtype)
