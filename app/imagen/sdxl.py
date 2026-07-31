@@ -252,35 +252,132 @@ class LoadedSDXL:
             generator = torch.Generator(device=self.device).manual_seed(seed)
             sdxl: StableDiffusionXLPipeline = self._sdxl
 
+            def _encode_text(text, encoder, tokenizer):
+                input_ids = tokenizer(
+                    text,
+                    return_tensors="pt",
+                    padding="max_length",
+                    truncation=True,
+                    max_length=77,
+                ).input_ids.to(self.device)
+                outputs = encoder(input_ids, output_hidden_states=True)
+                return outputs.hidden_states[-2], outputs.text_embeds
+
+            prompt_embeds, _ = _encode_text(prompt, sdxl.text_encoder, sdxl.tokenizer)
+            prompt_embeds_2, cond_pooled_text_embeds = _encode_text(
+                prompt, sdxl.text_encoder_2, sdxl.tokenizer_2
+            )
+            cond_prompt_embeds = torch.cat([prompt_embeds, prompt_embeds_2], dim=-1)
+
+            neg_prompt_embeds, _ = _encode_text(
+                negative_prompt, sdxl.text_encoder, sdxl.tokenizer
+            )
+            neg_prompt_embeds_2, uncond_pooled_text_embeds = _encode_text(
+                negative_prompt, sdxl.text_encoder_2, sdxl.tokenizer_2
+            )
+            uncond_prompt_embeds = torch.cat(
+                [negative_prompt, neg_prompt_embeds_2], dim=-1
+            )
+
+            crossattend_text_embeds = torch.cat(
+                [uncond_prompt_embeds, cond_prompt_embeds], dim=0
+            )
+            pooled_text_embeds = torch.cat(
+                [uncond_pooled_text_embeds, cond_pooled_text_embeds], dim=0
+            )
+            time_ids = torch.tensor(
+                [[1024, 1024, 0, 0, 1024, 1024]],
+                dtype=torch.float16,
+                device=self.device,
+            )
+            time_ids = torch.cat([time_ids, time_ids], dim=0)
+            added_cond_kwargs = {
+                "text_embeds": pooled_text_embeds,
+                "time_ids": time_ids,
+            }
+
+            noisy_latents = torch.randn(
+                (1, 4, height // 2, width // 2), device=self.device, dtype=torch.float16
+            )
+            noisy_latents *= sdxl.scheduler.init_noise_sigma
+            step = 1
+            for t in tqdm(sdxl.scheduler.timesteps, desc="generating"):
+                latent_model_input = torch.cat([noisy_latents] * 2)
+                latent_model_input = sdxl.scheduler.scale_model_input(
+                    latent_model_input, t
+                )
+
+                with torch.no_grad():
+                    output = sdxl.unet(
+                        sample=latent_model_input,
+                        timestep=t,
+                        encoder_hidden_states=crossattend_text_embeds,
+                        added_cond_kwargs=added_cond_kwargs,
+                    )
+
+                noise_pred_uncond, noise_pred_text = output.sample.chunk(2)
+                predicted_noise = noise_pred_uncond + guidance_scale * (
+                    noise_pred_text - noise_pred_uncond
+                )
+                noisy_latents = sdxl.sheduler.step(
+                    predicted_noise, t, noisy_latents
+                ).prev_sample
+
+                await asyncio.sleep(0)
+                if worker.inference_requests:
+                    inf = worker.inference_requests.get(promise_id)
+                    if inf:
+                        inf.steps_completed = i
+                        await worker._set_inference_req(promise_id, inf)
+                step += 1
+
+            def vae_decode(vae, latents):
+                latents = latents.to(dtype=torch.float32)
+
+                with torch.no_grad():
+                    unscaled_latents = latents / vae.config.scaling_factor
+                    decoded_output = vae.decode(unscaled_latents).sample
+
+                reconstructed_tensor = (decoded_output + 1.0) / 2.0
+                reconstructed_tensor = reconstructed_tensor.clamp(0, 1)
+                reconstructed_tensor = (
+                    reconstructed_tensor.cpu().permute(0, 2, 3, 1).float().numpy()
+                )
+                reconstructed_array = (reconstructed_tensor[0] * 255).astype(np.uint8)
+
+                return PILImg.fromarray(reconstructed_array)
+
+            image = vae_decode(sdxl.vae, noisy_latents)
+
             # ✅ TODID: Fix inference_requests not being sent properly
             # try:
             #     loop = asyncio.get_running_loop()
             # except RuntimeError:
             #     loop = None
             #
-            def progress_callback(pipe, i, t, callback_kwargs):
-                asyncio.run_coroutine_threadsafe(asyncio.sleep(0), worker._event_loop)
-                if worker.inference_requests:
-                    inf = worker.inference_requests.get(promise_id)
-                    if inf:
-                        inf.steps_completed = i + 1
-                        asyncio.run_coroutine_threadsafe(
-                            worker._set_inference_req(promise_id, inf),
-                            worker._event_loop,
-                        )
-
-                return callback_kwargs
-
-            image = sdxl(
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                guidance_scale=guidance_scale,
-                width=width,
-                height=height,
-                generator=generator,
-                callback_on_step_end=progress_callback,
-            ).images[0]
-
+            # def progress_callback(pipe, i, t, callback_kwargs):
+            #     asyncio.run_coroutine_threadsafe(asyncio.sleep(0), worker._event_loop)
+            #     if worker.inference_requests:
+            #         inf = worker.inference_requests.get(promise_id)
+            #         if inf:
+            #             inf.steps_completed = i + 1
+            #             asyncio.run_coroutine_threadsafe(
+            #                 worker._set_inference_req(promise_id, inf),
+            #                 worker._event_loop,
+            #             )
+            #
+            #     return callback_kwargs
+            #
+            # image = sdxl(
+            #     prompt=prompt,
+            #     negative_prompt=negative_prompt,
+            #     guidance_scale=guidance_scale,
+            #     width=width,
+            #     height=height,
+            #     generator=generator,
+            #     callback_on_step_end=progress_callback,
+            # ).images[0]
+            #
             buffer = io.BytesIO()
             image.save(buffer, format="PNG")
 
