@@ -1115,8 +1115,10 @@
 
         // Hook up save action bindings
         btnDownload.href = tempBlobURL;
+        
+        // Open the raw GET request URL directly from the backend in a new tab instead of the local blob
         btnFullscreen.onclick = () => {
-          window.open(tempBlobURL, '_blank');
+          window.open(`${BACKEND_URL}/api/v3/images/${promiseId}`, '_blank');
         };
         postActions.style.display = 'flex';
 

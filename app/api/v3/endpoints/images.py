@@ -70,4 +70,4 @@ async def get_image(
     img_data = await retrieve_image(req.app, promise_id)
     if not img_data:
         return Response("Reason: Missing minio resource.", status_code=404)
-    return Response(img_data, media_type="image/png")
+    return Response(img_data, media_type="image/jpeg")

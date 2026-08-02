@@ -390,6 +390,6 @@ class LoadedSDXL:
 
             image = vae_decode(sdxl.vae, noisy_latents)
             buffer = io.BytesIO()
-            image.save(buffer, format="PNG")
+            image.save(buffer, format="JPEG")
 
             return buffer.getvalue()

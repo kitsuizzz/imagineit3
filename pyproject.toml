@@ -3,7 +3,7 @@ name = "imagineit-backend"
 version = "3.1"
 description = "GPU backend for imagineit"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
