@@ -215,6 +215,7 @@ class LoadedSDXL:
         seed: int,
         width: int,
         height: int,
+        clip_skip: int,
     ):
         if IS_APPLE_METAL:
             if not self._sdxl:
@@ -264,16 +265,16 @@ class LoadedSDXL:
                     truncation=True,
                     max_length=77,
                 ).input_ids.to(self.device)
-                outputs = encoder(input_ids, output_hidden_states=True)
+                with torch.no_grad():
+                    outputs = encoder(input_ids, output_hidden_states=True)
                 text_embeds = (
                     None
                     if isinstance(outputs, BaseModelOutputWithPooling)
                     else outputs.text_embeds
                 )
-                return outputs.hidden_states[-2], text_embeds
+                return outputs.hidden_states[-clip_skip], text_embeds
 
-            # generator = torch.Generator(device=self.device)
-            local_scheduler = self._sdxl.scheduler.__class__.from_config(
+            local_scheduler = self._sdxl.scheduler.from_config(
                 self._sdxl.scheduler.config
             )
             sdxl: StableDiffusionXLPipeline = StableDiffusionXLPipeline.from_pipe(
@@ -313,14 +314,18 @@ class LoadedSDXL:
                 "time_ids": time_ids,
             }
 
+            # initialize random latent
+            generator = torch.Generator(device=self.device).manual_seed(seed)
             noisy_latents = torch.randn(
                 (1, 4, height // 8, width // 8),
+                generator=generator,
                 device=self.device,
                 dtype=torch.float16,
             )
             sdxl.scheduler.set_timesteps(steps, device=self.device)
             noisy_latents *= sdxl.scheduler.init_noise_sigma
             step = 1
+
             await asyncio.sleep(0)
 
             for t in tqdm(
@@ -384,36 +389,6 @@ class LoadedSDXL:
                 return PILImg.fromarray(reconstructed_array)
 
             image = vae_decode(sdxl.vae, noisy_latents)
-
-            # ✅ TODID: Fix inference_requests not being sent properly
-            # try:
-            #     loop = asyncio.get_running_loop()
-            # except RuntimeError:
-            #     loop = None
-            #
-            # def progress_callback(pipe, i, t, callback_kwargs):
-            #     asyncio.run_coroutine_threadsafe(asyncio.sleep(0), worker._event_loop)
-            #     if worker.inference_requests:
-            #         inf = worker.inference_requests.get(promise_id)
-            #         if inf:
-            #             inf.steps_completed = i + 1
-            #             asyncio.run_coroutine_threadsafe(
-            #                 worker._set_inference_req(promise_id, inf),
-            #                 worker._event_loop,
-            #             )
-            #
-            #     return callback_kwargs
-            #
-            # image = sdxl(
-            #     prompt=prompt,
-            #     negative_prompt=negative_prompt,
-            #     guidance_scale=guidance_scale,
-            #     width=width,
-            #     height=height,
-            #     generator=generator,
-            #     callback_on_step_end=progress_callback,
-            # ).images[0]
-            #
             buffer = io.BytesIO()
             image.save(buffer, format="PNG")
 
