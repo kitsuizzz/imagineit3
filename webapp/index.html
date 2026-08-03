@@ -155,11 +155,11 @@
       color: rgba(255, 255, 255, 0.15);
     }
 
-    /* Grid layout for settings controls - 4 columns */
+    /* Grid layout for settings controls - 3 columns */
     .grid-controls {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1.5rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2.25rem;
       margin-top: 2.25rem;
       padding-top: 2rem;
       border-top: 1px solid rgba(255, 255, 255, 0.04);
@@ -337,6 +337,40 @@
 
     .seed-input-field::placeholder {
       color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Custom select dropdown styling */
+    select.scheduler-select {
+      width: 100%;
+      background-color: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 0.5rem;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 0.625rem 0.875rem;
+      outline: none;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s;
+      appearance: none; /* Remove default browser arrow */
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.875rem center;
+      background-size: 1rem;
+      padding-right: 2.5rem; /* Space for the custom arrow icon */
+      cursor: pointer;
+    }
+
+    select.scheduler-select:focus {
+      border-color: rgba(6, 182, 212, 0.4);
+      box-shadow: 
+        inset 0 1px 3px rgba(0, 0, 0, 0.5),
+        0 0 12px rgba(6, 182, 212, 0.08);
+    }
+
+    select.scheduler-select option {
+      background-color: #0c091f; /* Consistent dark overlay background for options */
+      color: var(--text-main);
     }
 
     /* Primary Submit "ImagineIt" Button */
@@ -635,6 +669,19 @@
           <p class="help-description">Skips layers of the CLIP text encoder (1-12).</p>
         </div>
 
+        <!-- Scheduling Algorithm Setting -->
+        <div class="col">
+          <div class="control-header">
+            <span class="label" style="margin-bottom: 0;">Scheduler</span>
+          </div>
+          <select id="scheduler-select" class="scheduler-select">
+            <option value="euler">Euler</option>
+            <option value="euler_a" selected>Euler Ancestral (Euler A)</option>
+            <option value="unipc">UniPC</option>
+          </select>
+          <p class="help-description">The mathematical algorithm used to de-noise the image.</p>
+        </div>
+
         <!-- Seed Setting -->
         <div class="col">
           <div class="control-header">
@@ -808,6 +855,7 @@
     const cfgVal = document.getElementById('cfg-val');
     const clipRange = document.getElementById('clip-range');
     const clipVal = document.getElementById('clip-val');
+    const schedulerSelect = document.getElementById('scheduler-select');
     const widthRange = document.getElementById('width-range');
     const widthVal = document.getElementById('width-val');
     const heightRange = document.getElementById('height-range');
@@ -916,6 +964,7 @@
         steps: stepsRange.value,
         cfg: cfgRange.value,
         clip_skip: clipRange.value,
+        scheduler: schedulerSelect.value,
         width: widthRange.value,
         height: heightRange.value,
         isRandom: isRandom,
@@ -946,6 +995,9 @@
         if (settings.clip_skip !== undefined) {
           clipRange.value = settings.clip_skip;
           clipVal.textContent = settings.clip_skip;
+        }
+        if (settings.scheduler !== undefined) {
+          schedulerSelect.value = settings.scheduler;
         }
         if (settings.width !== undefined) {
           widthRange.value = settings.width;
@@ -1004,6 +1056,7 @@
         cfg: parseFloat(cfgRange.value),
         steps: parseInt(stepsRange.value, 10),
         clip_skip: parseInt(clipRange.value, 10),
+        scheduler: schedulerSelect.value,
         seed: isNaN(seedVal) ? null : seedVal
       };
 
@@ -1189,6 +1242,7 @@
       stepsRange,
       cfgRange,
       clipRange,
+      schedulerSelect,
       widthRange,
       heightRange,
       btnRandomCheckbox,
@@ -1199,7 +1253,7 @@
       element.addEventListener('change', saveSettingsToCookie);
     });
 
-    // Run Initial Setups asynchronously to allow configuration resolving first
+    // Run Initial SetSetup asynchronously to allow configuration resolving first
     initConfig().then(() => {
       // Load saved settings from cookies if available, otherwise apply fallbacks
       loadSettingsFromCookie();

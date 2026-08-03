@@ -11,6 +11,7 @@ class ImagenRequest(BaseModel):
     steps: int | None = None
     seed: int | None = None
     clip_skip: int | None = None
+    scheduler: str | None = None
 
 
 class InferenceResponse(BaseModel):

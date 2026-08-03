@@ -32,6 +32,7 @@ async def imagen(
         "height": 1024 if not inf_in.height else inf_in.height,
         "seed": 42 if not inf_in.seed else inf_in.seed,
         "clip_skip": 2 if not inf_in.clip_skip else inf_in.clip_skip,
+        "scheduler": "euler" if not inf_in.scheduler else inf_in.scheduler,
     }
     promise_id = str(uuid.uuid4())
     new_img = Image(promise_id=promise_id)

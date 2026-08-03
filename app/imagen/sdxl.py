@@ -1,21 +1,19 @@
-import inspect
+import asyncio
 import copy
-from dataclasses import dataclass
+import inspect
+import io
 import json
+import platform
 import sys
 import threading
-import asyncio
-import platform
+from dataclasses import dataclass
 from time import sleep
 
+import numpy as np
 from fastapi import FastAPI
+from PIL import Image as PILImg
 from sqlalchemy import select
 from tqdm.std import tqdm
-import numpy as np
-import io
-from PIL import Image as PILImg
-from diffusers import EulerDiscreteScheduler
-from transformers import CLIPTextModel, CLIPTextModelWithProjection
 
 from app.database import db_session
 from app.database.minio import upload_image
@@ -24,11 +22,25 @@ from app.database.models import Image
 IS_APPLE_METAL = platform.machine().lower() == "arm64"
 
 if IS_APPLE_METAL:
-    from imagen.metal.stable_diffusion import StableDiffusionXL  # type ignore
     import mlx.core as mx  # type ignore
+    from imagen.metal.stable_diffusion import StableDiffusionXL  # type ignore
 else:
     import torch  # type: ignore
-    from diffusers import StableDiffusionXLPipeline  # type: ignore
+    from diffusers import (  # type: ignore
+        AutoencoderKL,
+        EulerDiscreteScheduler,
+        StableDiffusionXLPipeline,
+        EulerAncestralDiscreteScheduler,
+        DPMSolverMultistepScheduler,
+        DPMSolverSinglestepScheduler,
+        HeunDiscreteScheduler,
+        UniPCMultistepScheduler,
+        LMSDiscreteScheduler,
+        KDPM2DiscreteScheduler,
+        KDPM2AncestralDiscreteScheduler,
+    )
+    from torch.nn.attention import sdpa_kernel, SDPBackend  # type: ignore
+    from transformers import CLIPTextModel, CLIPTextModelWithProjection  # type: ignore
     from transformers.modeling_outputs import BaseModelOutputWithPooling  # type: ignore
 
 
@@ -190,9 +202,7 @@ class LoadedSDXL:
             self._sdxl = StableDiffusionXL(model=model, float16=True)
             self._sdxl.ensure_models_are_loaded()
         else:
-            import torch  # type: ignore
-            from diffusers import StableDiffusionXLPipeline  # type: ignore
-
+            torch.use_deterministic_algorithms(True, warn_only=True)
             self.device = (
                 "cuda"
                 if torch.cuda.is_available()
@@ -200,21 +210,71 @@ class LoadedSDXL:
                 if torch.xpu.is_available()
                 else "cpu"
             )
+            self._schedulers = {
+                "euler": EulerDiscreteScheduler,
+                "euler_a": EulerAncestralDiscreteScheduler,
+                "unipc": UniPCMultistepScheduler,
+            }
 
-            revision = "fix/corrupted-text-encoder"
             text_encoder = CLIPTextModel.from_pretrained(
-                model, subfolder="text_encoder", dtype=torch.float32, revision=revision
-            ).to(self.device)
+                model, subfolder="text_encoder", dtype=torch.float32
+            ).to(self.device)  # type: ignore
             text_encoder_2 = CLIPTextModelWithProjection.from_pretrained(
                 model, subfolder="text_encoder_2", dtype=torch.float32
-            ).to(self.device)
+            ).to(self.device)  # type: ignore
+            vae = AutoencoderKL.from_pretrained(
+                model, subfolder="vae", torch_dtype=torch.float32
+            ).to(self.device)  # type: ignore
             self._sdxl = StableDiffusionXLPipeline.from_pretrained(
                 model,
                 torch_dtype=torch.float16,
                 text_encoder=text_encoder,
                 text_encoder_2=text_encoder_2,
+                vae=vae,
             ).to(self.device)
             self._diffusers_lock: asyncio.Lock = asyncio.Lock()
+
+    def _tokenize_text(self, text: str, tokenizer):
+        raw_text_chunks = [chunk.strip(" ,") for chunk in text.split("BREAK")]
+        token_chunks_list = tokenizer(
+            raw_text_chunks,
+            truncation=False,
+            add_special_tokens=False,
+        ).input_ids
+        token_chunks_without_special_tokens = [
+            token_chunks[i : i + 75]
+            for token_chunks in token_chunks_list
+            for i in range(0, len(token_chunks), 75)
+        ]
+        token_chunks_with_special_tokens = [
+            [tokenizer.bos_token_id]
+            + token_chunk
+            + [tokenizer.eos_token_id]
+            + [tokenizer.pad_token_id] * (75 - len(token_chunk))
+            for token_chunk in token_chunks_without_special_tokens
+        ]
+        input_ids = torch.tensor(
+            token_chunks_with_special_tokens,
+            dtype=torch.long,
+            device=self.device,
+        )
+        return input_ids
+
+    def _encode_text(self, input_ids, encoder, clip_skip: int):
+        with torch.no_grad():
+            outputs = encoder(input_ids, output_hidden_states=True)
+        text_embeds = (
+            None
+            if isinstance(outputs, BaseModelOutputWithPooling)
+            else outputs.text_embeds[0:1]
+        )
+        hidden_states = (
+            encoder.text_model.final_layer_norm(outputs.hidden_states[-2])
+            if clip_skip == 1
+            else outputs.hidden_states[-clip_skip]
+        )
+        hidden_states = hidden_states.view(1, -1, hidden_states.size(-1))
+        return hidden_states, text_embeds
 
     async def infer(
         self,
@@ -228,6 +288,7 @@ class LoadedSDXL:
         width: int,
         height: int,
         clip_skip: int,
+        scheduler: str,
     ):
         if IS_APPLE_METAL:
             if not self._sdxl:
@@ -262,68 +323,29 @@ class LoadedSDXL:
             np_array = np.array(img_array)
             pil_img = PILImg.fromarray(np_array[-1])
             buffer = io.BytesIO()
-            pil_img.save(buffer, format="PNG")  # Or "JPEG"
+            pil_img.save(buffer, format="JPEG")
             encoded_bytes = buffer.getvalue()
             return encoded_bytes
         else:
             if not self._sdxl:
                 raise ValueError()
 
-            def _tokenize_text(text: str, tokenizer):
-                raw_text_chunks = [chunk.strip(" ,") for chunk in text.split("BREAK")]
-                token_chunks_list = tokenizer(
-                    raw_text_chunks,
-                    truncation=False,
-                    add_special_tokens=False,
-                ).input_ids
-                token_chunks_without_special_tokens = [
-                    token_chunks[i : i + 75]
-                    for token_chunks in token_chunks_list
-                    for i in range(0, len(token_chunks), 75)
-                ]
-                token_chunks_with_special_tokens = [
-                    [tokenizer.bos_token_id]
-                    + token_chunk
-                    + [tokenizer.eos_token_id]
-                    + [tokenizer.pad_token_id] * (75 - len(token_chunk))
-                    for token_chunk in token_chunks_without_special_tokens
-                ]
-                input_ids = torch.tensor(
-                    token_chunks_with_special_tokens,
-                    dtype=torch.long,
-                    device=self.device,
-                )
-                return input_ids
+            Scheduler = self._schedulers.get(scheduler)
+            if not Scheduler:
+                raise ValueError("No schedler found")
+            local_scheduler = Scheduler.from_config(self._sdxl.scheduler.config)
 
-            def _encode_text(input_ids, encoder):
-                with torch.no_grad():
-                    outputs = encoder(input_ids, output_hidden_states=True)
-                text_embeds = (
-                    None
-                    if isinstance(outputs, BaseModelOutputWithPooling)
-                    else outputs.text_embeds[0:1]
-                )
-                hidden_states = (
-                    encoder.text_model.final_layer_norm(outputs.hidden_states[-2])
-                    if clip_skip == 1
-                    else outputs.hidden_states[-clip_skip]
-                )
-                hidden_states = hidden_states.view(1, -1, hidden_states.size(-1))
-                return hidden_states, text_embeds
-
-            local_scheduler = self._sdxl.scheduler.from_config(
-                self._sdxl.scheduler.config
-            )
             sdxl: StableDiffusionXLPipeline = StableDiffusionXLPipeline.from_pipe(
                 self._sdxl, scheduler=local_scheduler, torch_dtype=torch.float16
             )
-            sdxl.scheduler = local_scheduler
 
             # Text Tokenizing
-            tokenized_prompt = _tokenize_text(prompt, sdxl.tokenizer)
-            tokenized_prompt_2 = _tokenize_text(prompt, sdxl.tokenizer_2)
-            tokenized_neg_prompt = _tokenize_text(negative_prompt, sdxl.tokenizer)
-            tokenized_neg_prompt_2 = _tokenize_text(negative_prompt, sdxl.tokenizer_2)
+            tokenized_prompt = self._tokenize_text(prompt, sdxl.tokenizer)
+            tokenized_prompt_2 = self._tokenize_text(prompt, sdxl.tokenizer_2)
+            tokenized_neg_prompt = self._tokenize_text(negative_prompt, sdxl.tokenizer)
+            tokenized_neg_prompt_2 = self._tokenize_text(
+                negative_prompt, sdxl.tokenizer_2
+            )
 
             # padding
             padding_size = abs(
@@ -358,18 +380,20 @@ class LoadedSDXL:
                         [tokenized_prompt_2, padding_tensor_2], dim=0
                     )
 
-            prompt_embeds, _ = _encode_text(tokenized_prompt, sdxl.text_encoder)
-            prompt_embeds_2, cond_pooled_text_embeds = _encode_text(
-                tokenized_prompt_2, sdxl.text_encoder_2
+            # text encoding
+            prompt_embeds, _ = self._encode_text(
+                tokenized_prompt, sdxl.text_encoder, clip_skip
+            )
+            prompt_embeds_2, cond_pooled_text_embeds = self._encode_text(
+                tokenized_prompt_2, sdxl.text_encoder_2, clip_skip
             )
             cond_prompt_embeds = torch.cat([prompt_embeds, prompt_embeds_2], dim=-1)
 
-            neg_prompt_embeds, _ = _encode_text(
-                tokenized_neg_prompt,
-                sdxl.text_encoder,
+            neg_prompt_embeds, _ = self._encode_text(
+                tokenized_neg_prompt, sdxl.text_encoder, clip_skip
             )
-            neg_prompt_embeds_2, uncond_pooled_text_embeds = _encode_text(
-                tokenized_neg_prompt_2, sdxl.text_encoder_2
+            neg_prompt_embeds_2, uncond_pooled_text_embeds = self._encode_text(
+                tokenized_neg_prompt_2, sdxl.text_encoder_2, clip_skip
             )
             uncond_prompt_embeds = torch.cat(
                 [neg_prompt_embeds, neg_prompt_embeds_2], dim=-1
@@ -393,13 +417,15 @@ class LoadedSDXL:
             }
 
             # initialize random latent
-            generator = torch.Generator(device=self.device).manual_seed(seed)
+            sdxl.unet.set_default_attn_processor()
+            generator = torch.Generator(device="cpu").manual_seed(seed)
             noisy_latents = torch.randn(
                 (1, 4, height // 8, width // 8),
                 generator=generator,
-                device=self.device,
-                dtype=torch.float16,
+                device="cpu",
+                dtype=torch.float32,
             )
+            noisy_latents = noisy_latents.to(device=self.device, dtype=torch.float16)
             sdxl.scheduler.set_timesteps(steps, device=self.device)
             noisy_latents *= sdxl.scheduler.init_noise_sigma
             step = 1
@@ -429,9 +455,14 @@ class LoadedSDXL:
                 predicted_noise = noise_pred_uncond + guidance_scale * (
                     noise_pred_text - noise_pred_uncond
                 )
-                noisy_latents = sdxl.scheduler.step(
-                    predicted_noise, t, noisy_latents
-                ).prev_sample
+                try:
+                    noisy_latents = sdxl.scheduler.step(
+                        predicted_noise, t, noisy_latents, generator=generator
+                    ).prev_sample
+                except TypeError:
+                    noisy_latents = sdxl.scheduler.step(
+                        predicted_noise, t, noisy_latents
+                    ).prev_sample
 
                 match self.device:
                     case "cuda":
@@ -447,8 +478,8 @@ class LoadedSDXL:
                         inf.steps_completed = step
                         await worker._set_inference_req(promise_id, inf)
                 step += 1
-                await asyncio.sleep(0)
                 sys.stdout.flush()
+                await asyncio.sleep(0)
 
             def vae_decode(vae, latents):
                 latents = latents.to(device=vae.device, dtype=vae.dtype)
@@ -466,7 +497,6 @@ class LoadedSDXL:
 
                 return PILImg.fromarray(reconstructed_array)
 
-            sdxl.vae = sdxl.vae.to(dtype=torch.float32)
             image = vae_decode(sdxl.vae, noisy_latents)
             buffer = io.BytesIO()
             image.save(buffer, format="JPEG")
