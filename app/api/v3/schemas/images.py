@@ -10,6 +10,7 @@ class ImagenRequest(BaseModel):
     cfg: float | None = None
     steps: int | None = None
     seed: int | None = None
+    clip_skip: int | None = None
 
 
 class InferenceResponse(BaseModel):

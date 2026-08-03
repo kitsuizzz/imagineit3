@@ -15,6 +15,7 @@ import numpy as np
 import io
 from PIL import Image as PILImg
 from diffusers import EulerDiscreteScheduler
+from transformers import CLIPTextModel, CLIPTextModelWithProjection
 
 from app.database import db_session
 from app.database.minio import upload_image
@@ -199,8 +200,19 @@ class LoadedSDXL:
                 if torch.xpu.is_available()
                 else "cpu"
             )
+
+            revision = "fix/corrupted-text-encoder"
+            text_encoder = CLIPTextModel.from_pretrained(
+                model, subfolder="text_encoder", dtype=torch.float32, revision=revision
+            ).to(self.device)
+            text_encoder_2 = CLIPTextModelWithProjection.from_pretrained(
+                model, subfolder="text_encoder_2", dtype=torch.float32
+            ).to(self.device)
             self._sdxl = StableDiffusionXLPipeline.from_pretrained(
-                model, torch_dtype=torch.float16
+                model,
+                torch_dtype=torch.float16,
+                text_encoder=text_encoder,
+                text_encoder_2=text_encoder_2,
             ).to(self.device)
             self._diffusers_lock: asyncio.Lock = asyncio.Lock()
 
@@ -257,22 +269,47 @@ class LoadedSDXL:
             if not self._sdxl:
                 raise ValueError()
 
-            def _encode_text(text, encoder, tokenizer):
-                input_ids = tokenizer(
-                    text,
-                    return_tensors="pt",
-                    padding="max_length",
-                    truncation=True,
-                    max_length=77,
-                ).input_ids.to(self.device)
+            def _tokenize_text(text: str, tokenizer):
+                raw_text_chunks = [chunk.strip(" ,") for chunk in text.split("BREAK")]
+                token_chunks_list = tokenizer(
+                    raw_text_chunks,
+                    truncation=False,
+                    add_special_tokens=False,
+                ).input_ids
+                token_chunks_without_special_tokens = [
+                    token_chunks[i : i + 75]
+                    for token_chunks in token_chunks_list
+                    for i in range(0, len(token_chunks), 75)
+                ]
+                token_chunks_with_special_tokens = [
+                    [tokenizer.bos_token_id]
+                    + token_chunk
+                    + [tokenizer.eos_token_id]
+                    + [tokenizer.pad_token_id] * (75 - len(token_chunk))
+                    for token_chunk in token_chunks_without_special_tokens
+                ]
+                input_ids = torch.tensor(
+                    token_chunks_with_special_tokens,
+                    dtype=torch.long,
+                    device=self.device,
+                )
+                return input_ids
+
+            def _encode_text(input_ids, encoder):
                 with torch.no_grad():
                     outputs = encoder(input_ids, output_hidden_states=True)
                 text_embeds = (
                     None
                     if isinstance(outputs, BaseModelOutputWithPooling)
-                    else outputs.text_embeds
+                    else outputs.text_embeds[0:1]
                 )
-                return outputs.hidden_states[-clip_skip], text_embeds
+                hidden_states = (
+                    encoder.text_model.final_layer_norm(outputs.hidden_states[-2])
+                    if clip_skip == 1
+                    else outputs.hidden_states[-clip_skip]
+                )
+                hidden_states = hidden_states.view(1, -1, hidden_states.size(-1))
+                return hidden_states, text_embeds
 
             local_scheduler = self._sdxl.scheduler.from_config(
                 self._sdxl.scheduler.config
@@ -281,17 +318,58 @@ class LoadedSDXL:
                 self._sdxl, scheduler=local_scheduler, torch_dtype=torch.float16
             )
             sdxl.scheduler = local_scheduler
-            prompt_embeds, _ = _encode_text(prompt, sdxl.text_encoder, sdxl.tokenizer)
+
+            # Text Tokenizing
+            tokenized_prompt = _tokenize_text(prompt, sdxl.tokenizer)
+            tokenized_prompt_2 = _tokenize_text(prompt, sdxl.tokenizer_2)
+            tokenized_neg_prompt = _tokenize_text(negative_prompt, sdxl.tokenizer)
+            tokenized_neg_prompt_2 = _tokenize_text(negative_prompt, sdxl.tokenizer_2)
+
+            # padding
+            padding_size = abs(
+                tokenized_prompt.shape[0] - tokenized_neg_prompt.shape[0]
+            )
+            if padding_size > 0:
+                padding_tensor_1 = (
+                    torch.tensor([sdxl.tokenizer.eos_token_id] * padding_size * 77)
+                    .reshape(padding_size, 77)
+                    .to(self.device)
+                )
+                padding_tensor_2 = (
+                    torch.tensor([sdxl.tokenizer_2.eos_token_id] * padding_size * 77)
+                    .reshape(padding_size, 77)
+                    .to(self.device)
+                )
+                should_neg_pad = (
+                    tokenized_prompt.shape[0] > tokenized_neg_prompt.shape[0]
+                )
+                if should_neg_pad:
+                    tokenized_neg_prompt = torch.cat(
+                        [tokenized_neg_prompt, padding_tensor_1], dim=0
+                    )
+                    tokenized_neg_prompt_2 = torch.cat(
+                        [tokenized_neg_prompt_2, padding_tensor_2], dim=0
+                    )
+                else:
+                    tokenized_prompt = torch.cat(
+                        [tokenized_prompt, padding_tensor_1], dim=0
+                    )
+                    tokenized_prompt_2 = torch.cat(
+                        [tokenized_prompt_2, padding_tensor_2], dim=0
+                    )
+
+            prompt_embeds, _ = _encode_text(tokenized_prompt, sdxl.text_encoder)
             prompt_embeds_2, cond_pooled_text_embeds = _encode_text(
-                prompt, sdxl.text_encoder_2, sdxl.tokenizer_2
+                tokenized_prompt_2, sdxl.text_encoder_2
             )
             cond_prompt_embeds = torch.cat([prompt_embeds, prompt_embeds_2], dim=-1)
 
             neg_prompt_embeds, _ = _encode_text(
-                negative_prompt, sdxl.text_encoder, sdxl.tokenizer
+                tokenized_neg_prompt,
+                sdxl.text_encoder,
             )
             neg_prompt_embeds_2, uncond_pooled_text_embeds = _encode_text(
-                negative_prompt, sdxl.text_encoder_2, sdxl.tokenizer_2
+                tokenized_neg_prompt_2, sdxl.text_encoder_2
             )
             uncond_prompt_embeds = torch.cat(
                 [neg_prompt_embeds, neg_prompt_embeds_2], dim=-1
@@ -388,6 +466,7 @@ class LoadedSDXL:
 
                 return PILImg.fromarray(reconstructed_array)
 
+            sdxl.vae = sdxl.vae.to(dtype=torch.float32)
             image = vae_decode(sdxl.vae, noisy_latents)
             buffer = io.BytesIO()
             image.save(buffer, format="JPEG")

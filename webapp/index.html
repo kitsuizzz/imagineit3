@@ -155,11 +155,11 @@
       color: rgba(255, 255, 255, 0.15);
     }
 
-    /* Grid layout for settings controls */
+    /* Grid layout for settings controls - 4 columns */
     .grid-controls {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 2.25rem;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
       margin-top: 2.25rem;
       padding-top: 2rem;
       border-top: 1px solid rgba(255, 255, 255, 0.04);
@@ -625,6 +625,16 @@
           <p class="help-description">How strongly the generator adheres to your prompt (1.0-10.0).</p>
         </div>
 
+        <!-- CLIP Skip Setting -->
+        <div class="col">
+          <div class="control-header">
+            <span class="label" style="margin-bottom: 0;">CLIP Skip</span>
+            <span class="val-indicator" id="clip-val">2</span>
+          </div>
+          <input type="range" id="clip-range" min="1" max="12" step="1" value="2">
+          <p class="help-description">Skips layers of the CLIP text encoder (1-12).</p>
+        </div>
+
         <!-- Seed Setting -->
         <div class="col">
           <div class="control-header">
@@ -796,6 +806,8 @@
     const stepsVal = document.getElementById('steps-val');
     const cfgRange = document.getElementById('cfg-range');
     const cfgVal = document.getElementById('cfg-val');
+    const clipRange = document.getElementById('clip-range');
+    const clipVal = document.getElementById('clip-val');
     const widthRange = document.getElementById('width-range');
     const widthVal = document.getElementById('width-val');
     const heightRange = document.getElementById('height-range');
@@ -859,6 +871,11 @@
       updateSliderTrack(cfgRange);
     });
 
+    clipRange.addEventListener('input', (e) => {
+      clipVal.textContent = e.target.value;
+      updateSliderTrack(clipRange);
+    });
+
     widthRange.addEventListener('input', (e) => {
       widthVal.textContent = `${e.target.value} px`;
       updateSliderTrack(widthRange);
@@ -898,6 +915,7 @@
         negative_prompt: document.getElementById('negative-prompt').value,
         steps: stepsRange.value,
         cfg: cfgRange.value,
+        clip_skip: clipRange.value,
         width: widthRange.value,
         height: heightRange.value,
         isRandom: isRandom,
@@ -924,6 +942,10 @@
         if (settings.cfg !== undefined) {
           cfgRange.value = settings.cfg;
           cfgVal.textContent = parseFloat(settings.cfg).toFixed(1);
+        }
+        if (settings.clip_skip !== undefined) {
+          clipRange.value = settings.clip_skip;
+          clipVal.textContent = settings.clip_skip;
         }
         if (settings.width !== undefined) {
           widthRange.value = settings.width;
@@ -981,6 +1003,7 @@
         height: finalHeight,
         cfg: parseFloat(cfgRange.value),
         steps: parseInt(stepsRange.value, 10),
+        clip_skip: parseInt(clipRange.value, 10),
         seed: isNaN(seedVal) ? null : seedVal
       };
 
@@ -1165,6 +1188,7 @@
       document.getElementById('negative-prompt'),
       stepsRange,
       cfgRange,
+      clipRange,
       widthRange,
       heightRange,
       btnRandomCheckbox,
@@ -1183,6 +1207,7 @@
       // Render correct gradient slider track colors
       updateSliderTrack(stepsRange);
       updateSliderTrack(cfgRange);
+      updateSliderTrack(clipRange);
       updateSliderTrack(widthRange);
       updateSliderTrack(heightRange);
     });
