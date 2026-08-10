@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from database.minio import BUCKET_NAME, connect_bucket, init_minio
 from api.v3 import v3_router
 from database.valkey import init_valkey
-from imagen.sdxl import init_sdxl
+from imagen.anima import DedicatedAnimaWorker
 
 load_dotenv()
 
@@ -18,10 +18,13 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     # hold ref to event loop
     app.state.event_loop = asyncio.get_running_loop()
+
+    app.state.sdxl = DedicatedAnimaWorker(app)
+    app.state.sdxl.start()
+
     # App pre-inits
     await init_minio(app)
     init_valkey(app)
-    init_sdxl(app, "wssdaas/nova-anime-xl-ilv-19.0")
     await connect_bucket(app, BUCKET_NAME)
 
     yield  # App execution
