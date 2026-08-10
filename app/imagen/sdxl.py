@@ -150,7 +150,7 @@ class DedicatedSDXLWorker:
         await awaitable_db_task
 
     async def _async_loop(self):
-        self._sdxl = LoadedSDXL(self._app, self._model)
+        # self._sdxl = LoadedSDXL(self._app, self._model)
         self._queue = asyncio.Queue()
         self._semaphore = asyncio.Semaphore(4)
         self._inference_requests = {}
