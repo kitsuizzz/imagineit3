@@ -241,6 +241,7 @@ class StableDiffusionXL(StableDiffusion):
         negative_text: str = "",
         latent_size: Tuple[int, int] = (128, 128),
         seed=None,
+        orig_size: Tuple[int, int] | None = None,
     ):
         # Set the PRNG state
         seed = int(time.time()) if seed is None else seed
@@ -250,9 +251,13 @@ class StableDiffusionXL(StableDiffusion):
         conditioning, pooled_conditioning = self._get_text_conditioning(
             text, n_images, cfg_weight, negative_text
         )
+        orig_height, orig_width = orig_size or (512, 512)
         text_time = (
             pooled_conditioning,
-            mx.array([[512, 512, 0, 0, 512, 512.0]] * len(pooled_conditioning)),
+            mx.array(
+                [[orig_height, orig_width, 0, 0, orig_height, orig_width]]
+                * len(pooled_conditioning)
+            ),
         )
 
         # Create the latent variables

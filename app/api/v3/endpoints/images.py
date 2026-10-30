@@ -1,72 +1,56 @@
-import io
-from typing import Annotated
 import uuid
 
-from fastapi import APIRouter, Depends, Request, BackgroundTasks, Response, status
+from fastapi import APIRouter, Request, Response
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v3.schemas.images import ImagenRequest, InferenceResponse
-from app.database.db import get_db
+from app.database.db import db_session
 from app.database.minio import retrieve_image
 from app.database.models import Image
-from imagen.sdxl import DedicatedSDXLWorker
-
+from app.services import jobs
+from app.services.worker_gateway import WorkerGateway
 
 router = APIRouter()
 
 
 @router.post("/inferences")
-async def imagen(
-    req: Request, inf_in: ImagenRequest, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    sdxl: DedicatedSDXLWorker = req.app.state.sdxl
+async def imagen(req: Request, inf_in: ImagenRequest):
     inf_param = {
         "prompt": inf_in.prompt,
-        "negative_prompt": "bad quality"
-        if not inf_in.negative_prompt
-        else inf_in.negative_prompt,
-        "steps": 28 if not inf_in.steps else inf_in.steps,
-        "guidance_scale": 1.0 if not inf_in.cfg else inf_in.cfg,
-        "width": 1024 if not inf_in.width else inf_in.width,
-        "height": 1024 if not inf_in.height else inf_in.height,
-        "seed": 42 if not inf_in.seed else inf_in.seed,
-        "clip_skip": 2 if not inf_in.clip_skip else inf_in.clip_skip,
-        "scheduler": "euler" if not inf_in.scheduler else inf_in.scheduler,
+        "negative_prompt": inf_in.negative_prompt or "bad quality",
+        "steps": 28 if inf_in.steps is None else inf_in.steps,
+        "guidance_scale": 1.0 if inf_in.cfg is None else inf_in.cfg,
+        "width": 1024 if inf_in.width is None else inf_in.width,
+        "height": 1024 if inf_in.height is None else inf_in.height,
+        # seed=0 is a valid seed and must not fall back to the default.
+        "seed": 42 if inf_in.seed is None else inf_in.seed,
+        "clip_skip": 2 if inf_in.clip_skip is None else inf_in.clip_skip,
+        "scheduler": inf_in.scheduler or "euler",
     }
     promise_id = str(uuid.uuid4())
-    new_img = Image(promise_id=promise_id)
-    db.add(new_img)
-    await db.commit()
-    sdxl.queue_inference(promise_id, inf_param)
+    await jobs.create_job(promise_id, inf_param, inf_param["steps"])
+
+    gateway: WorkerGateway | None = getattr(req.app.state, "gateway", None)
+    if gateway is not None:
+        gateway.wake.set()
     return {"promise_id": promise_id}
 
 
 @router.get("/inferences/{promise_id}", response_model=InferenceResponse)
-async def imagen_status(
-    req: Request, promise_id: str, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    stmt = select(Image).where(Image.promise_id == promise_id)
-    result = await db.scalars(stmt)
-    image_metadata: Image | None = result.first()
-    if not image_metadata:
+async def imagen_status(promise_id: str):
+    job = await jobs.get_job(promise_id)
+    if not job:
         return Response(status_code=404)
-    sdxl: DedicatedSDXLWorker = req.app.state.sdxl
-    live_inf_status = sdxl.get_inference_status(promise_id)
-    if live_inf_status:
-        image_metadata.steps_status = live_inf_status
-    if not image_metadata.steps_status:
-        image_metadata.steps_status = "{}"
-    return image_metadata
+    if not job["steps_status"]:
+        job["steps_status"] = f"0/{job['steps_total'] or 0}"
+    return job
 
 
 @router.get("/{promise_id}")
-async def get_image(
-    req: Request, promise_id: str, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    stmt = select(Image).where(Image.promise_id == promise_id)
-    result = await db.scalars(stmt)
-    image_metadata = result.first()
+async def get_image(req: Request, promise_id: str):
+    async with db_session() as session:
+        stmt = select(Image).where(Image.promise_id == promise_id)
+        image_metadata = (await session.scalars(stmt)).first()
     if not image_metadata:
         return Response("No images found.", status_code=404)
     img_data = await retrieve_image(req.app, promise_id)

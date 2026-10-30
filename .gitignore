@@ -4,5 +4,12 @@
 .env
 .python-version
 __pycache__/
+.pytest_cache/
+.ruff_cache/
 
 webapp/env.json
+
+# Worker credentials must never be committed.
+gpu_workers.json
+*.worker.json
+*.key

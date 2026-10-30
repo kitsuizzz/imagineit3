@@ -12,7 +12,7 @@ BUCKET_NAME = "imagineit-images"
 
 async def init_minio(app: FastAPI):
     minio_client = Minio(
-        f"localhost:{os.getenv('MINIO_PORT')}",
+        f"{os.getenv('MINIO_HOST', 'localhost')}:{os.getenv('MINIO_PORT')}",
         access_key=os.getenv("MINIO_ROOT_USER"),
         secret_key=os.getenv("MINIO_ROOT_PASSWORD"),
         secure=False,
@@ -38,7 +38,7 @@ def _upload_image(app: FastAPI, image_data: io.BytesIO, object_name: str):
         object_name=object_name,
         data=image_data,
         length=len(image_data.getvalue()),
-        content_type="image/png",
+        content_type="image/jpeg",
     )
 
 

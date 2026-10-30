@@ -16,7 +16,10 @@ def init_db():
     global _Base
     _DATABASE_URL = f"{os.getenv('DB_ENGINE')}+{os.getenv('DB_DRIVER')}://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
 
-    engine = create_async_engine(_DATABASE_URL, pool_recycle=3600, echo=True)
+    echo = os.getenv("DB_ECHO", "false").lower() in {"1", "true", "yes"}
+    engine = create_async_engine(
+        _DATABASE_URL, pool_recycle=3600, pool_pre_ping=True, echo=echo
+    )
     _AsyncSessionLocal = async_sessionmaker(
         bind=engine, class_=AsyncSession, expire_on_commit=False
     )
@@ -25,7 +28,7 @@ def init_db():
 
 async def get_db():
     if not _AsyncSessionLocal:
-        raise ConnectionError("DB not conencted")
+        raise ConnectionError("DB not connected")
     async with _AsyncSessionLocal() as session:
         yield session
 
@@ -33,7 +36,7 @@ async def get_db():
 @asynccontextmanager
 async def db_session():
     if not _AsyncSessionLocal:
-        raise ConnectionError("DB not conencted")
+        raise ConnectionError("DB not connected")
     async with _AsyncSessionLocal() as session:
         yield session
 
