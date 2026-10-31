@@ -553,8 +553,26 @@ class GpuWorker:
             await self._on_result_ack(payload, success=False)
         elif msg_type == "heartbeat_ack" or msg_type == "error_ack":
             pass
+        elif msg_type == "shutdown":
+            await self._on_shutdown(payload)
         else:
             logger.warning("Unknown message from app: %s", msg_type)
+
+    async def _on_shutdown(self, payload: dict[str, Any]) -> None:
+        """Exit so the host session ends.
+
+        Kaggle exposes no stop endpoint, so the app stops a run by telling the
+        worker inside it to quit. The supervising parent exits once every child
+        is gone, which ends the notebook and the GPU session with it.
+        """
+        reason = str(payload.get("reason") or "requested by the app")
+        logger.info("Shutdown requested (%s); exiting", reason)
+        try:
+            await self._safe_send("shutdown_ack", {"reason": reason})
+        except Exception:  # noqa: BLE001 - best effort before exiting
+            pass
+        await asyncio.sleep(0.5)
+        os._exit(0)
 
     async def _on_job(self, payload: dict[str, Any]) -> None:
         job_id = payload.get("job_id")
