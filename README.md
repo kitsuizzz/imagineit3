@@ -20,6 +20,48 @@ The app is the only server. GPU workers dial `APP_WS_URL`, authenticate with a p
 
 A worker can reconnect after a network drop and continue its current job. The app keeps the job on a lease, and results are retried until acknowledged.
 
+## Accounts and client-side encryption
+
+Every API call except `POST /api/v3/accounts` requires
+`Authorization: Bearer <token>`. Signup returns the token exactly once and the
+database stores only its SHA-256 hash. There is no password and no recovery.
+
+The browser also generates a P-256 keypair at signup:
+
+- the public key is sent to the app (`accounts.public_key`);
+- the private key is imported as a non-extractable `CryptoKey` and kept in
+  IndexedDB, so it never reaches the server.
+
+Prompt parameters (`inferences.params_json`) and generated JPEGs are sealed to
+that public key with ephemeral ECDH + HKDF-SHA256 + AES-256-GCM (the `E2E1`
+envelope). The app can encrypt for a user but cannot open what it stores.
+
+Two consequences are intentional:
+
+1. A prompt has to exist in plaintext while a GPU renders it. The app keeps the
+   plaintext copy in process memory only; the database row always holds
+   ciphertext. A restart therefore fails unfinished jobs instead of dispatching
+   them without a prompt.
+2. Kaggle credentials must be readable by the server because browserful signs
+   in on the user's behalf. They are stored per account, encrypted with
+   `APP_SECRET`, and never returned by the API.
+
+Operational fields stay plaintext so jobs can be scheduled: ids, status, step
+counters, timestamps, and worker ids.
+
+Kaggle actions run in a browserful session named `imagineit-kaggle-<account_id>`,
+so two users never drive the same browser. Workers, however, are still
+registered globally: a job can land on any connected GPU. Per-user hardware
+isolation would need per-user worker keys, which the current Kaggle notebook
+bootstrap does not provide.
+
+### Migration
+
+```bash
+alembic upgrade head
+python scripts/wipe_legacy_data.py   # pre-account rows + plaintext JPEGs
+```
+
 ## Requirements
 
 App host:
@@ -137,6 +179,8 @@ python scripts/fake_gpu_worker.py \
 | `WORKER_LEASE_SECONDS` | Job lease granted to a worker | `300` |
 | `WORKER_DISCONNECT_GRACE_SECONDS` | Time a disconnected worker has to reconnect | `60` |
 | `MAX_RESULT_BYTES` | Largest accepted JPEG | `8388608` |
+| `APP_SECRET` | 32+ chars; encrypts per-user Kaggle credentials | — |
+| `BROWSERFUL_KEY` | Bearer key for the browserful agent | — |
 
 If you raise `MAX_RESULT_BYTES`, also raise Uvicorn's WebSocket frame limit with `--ws-max-size`; the default result size is chosen to fit under Uvicorn's 16 MiB default after base64 encoding.
 | `MINIO_HOST` / `MINIO_PORT` | Object storage endpoint | `localhost:9000` |
@@ -155,11 +199,17 @@ Multiple entries for the same `worker_id` with different `key_id` values allow k
 
 ## Public API
 
+Everything below except signup requires `Authorization: Bearer <token>`.
+
+- `POST /api/v3/accounts` — public; body `{"public_key": "<base64 P-256>"}`; returns `{"account_id", "token"}` once
+- `GET /api/v3/account` — current account id
 - `GET /api/v3/status`
 - `GET /api/v3/workers` returns connected GPU worker metadata for the status panel
 - `POST /api/v3/images/inferences` returns `{"promise_id": "..."}`
-- `GET /api/v3/images/inferences/{promise_id}` returns `status`, `steps_status`, `steps_completed`, `steps_total`, and `error`
-- `GET /api/v3/images/{promise_id}` returns the JPEG once it exists
+- `GET /api/v3/images/inferences/{promise_id}` returns `status`, `steps_status`, `steps_completed`, `steps_total`, and `error` (scoped to the caller)
+- `GET /api/v3/images/{promise_id}` returns the sealed `E2E1` envelope (scoped to the caller)
+- `POST /api/v3/kaggle/connect` / `disconnect` — body optional once credentials are saved
+- `GET|PUT|DELETE /api/v3/kaggle/credentials` — per-user Kaggle login status/save/remove
 
 The inference status values are `queued`, `dispatched`, `running`, `succeeded`, `failed`, and `cancelled`.
 
@@ -170,8 +220,9 @@ The inference status values are `queued`, `dispatched`, `running`, `succeeded`, 
 - Sequence numbers and associated data prevent replay, reordering, and tampering.
 - A static pre-shared key does not provide forward secrecy; a leaked key exposes captured sessions, so rotate keys and use `wss://` for defence in depth.
 - Plain `ws://` still hides message contents, but leaks connection metadata and timing; use `wss://` when possible.
-- The app backend can decrypt prompts and images. This is transport/content security, not zero-knowledge.
-- Prompts and generation parameters are stored in MariaDB as JSON so queued jobs survive an app restart; protect database access accordingly.
+- The app cannot decrypt stored prompts or images: they are sealed to the browser key. It can still see the prompt in memory while a job runs, so this is not zero-knowledge against a live server.
+- `inferences.params_json` holds ciphertext; the plaintext copy lives only in process memory, which is why an app restart fails unfinished jobs.
+- Kaggle logins are the exception: they are encrypted with `APP_SECRET` because browserful has to sign in, and they are never returned by the API.
 - Keys are stored outside the database. Do not commit `gpu_workers.json` or `*.worker.json`.
 - The app backend currently runs as one instance because a worker connection lives in one process. Multi-instance routing would require a shared broker such as Valkey.
 

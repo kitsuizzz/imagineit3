@@ -367,6 +367,7 @@ class GpuWorker:
                     "name": self.config.name,
                     "model": self.config.model,
                     "device": self._device_name(),
+                    "kind": self._worker_kind(),
                     "capabilities": {
                         "schedulers": [
                             "euler",
@@ -801,6 +802,17 @@ class GpuWorker:
             await self._send(msg_type, payload)
         except Exception:  # noqa: BLE001 - message is lost if offline
             pass
+
+    def _worker_kind(self) -> str:
+        """Report where this worker runs.
+
+        Kaggle kernels always carry KAGGLE_KERNEL_RUN_TYPE and a
+        /kaggle/working directory; reporting that explicitly lets the UI offer
+        "Disconnect" without guessing from the worker id.
+        """
+        if os.getenv("KAGGLE_KERNEL_RUN_TYPE") or os.path.isdir("/kaggle/working"):
+            return "kaggle"
+        return ""
 
     def _device_name(self) -> str:
         if sys.platform == "darwin" and platform.machine().lower() == "arm64":

@@ -329,6 +329,115 @@
       color: var(--text-muted);
     }
 
+    /* Kaggle GPU control panel */
+    .kaggle-panel {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1.25rem;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow:
+        0 20px 45px -20px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(24px) saturate(140%);
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .kaggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .kaggle-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 0;
+    }
+
+    .kaggle-hint {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .kaggle-btn {
+      white-space: nowrap;
+    }
+
+    .kaggle-btn.is-stop {
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+      color: #fca5a5;
+    }
+
+    .kaggle-credentials summary {
+      cursor: pointer;
+      color: var(--text-label);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      list-style: none;
+    }
+
+    .kaggle-credentials summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .kaggle-credentials summary::before {
+      content: "▸ ";
+      color: var(--text-muted);
+    }
+
+    .kaggle-credentials[open] summary::before {
+      content: "▾ ";
+    }
+
+    .kaggle-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }
+
+    .kaggle-fields .seed-input-field {
+      width: 100%;
+    }
+
+    .kaggle-status {
+      display: none;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      overflow-wrap: anywhere;
+    }
+
+    .kaggle-status.is-visible {
+      display: block;
+    }
+
+    .kaggle-status.is-ok {
+      color: #86efac;
+    }
+
+    .kaggle-status.is-error {
+      color: #fca5a5;
+    }
+
+    @media (max-width: 640px) {
+      .kaggle-fields {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.3; }
@@ -846,9 +955,116 @@
         font-size: 2.5rem;
       }
     }
+
+    /* Account gate */
+    .account-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(1200px 600px at 50% -10%, #171d24 0%, var(--bg-dark) 65%);
+      backdrop-filter: blur(8px);
+    }
+    .account-gate.is-hidden { display: none; }
+    .account-card {
+      width: min(94vw, 440px);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1.25rem;
+      padding: 2rem;
+      box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(24px) saturate(140%);
+    }
+    .account-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    .account-title span { color: var(--accent-cyan); }
+    .account-lead {
+      color: var(--text-label);
+      font-size: 0.92rem;
+      line-height: 1.55;
+      margin-bottom: 1.25rem;
+    }
+    .account-lead strong { color: var(--text-main); }
+    .account-input {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text-main);
+      font: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      margin-bottom: 0.75rem;
+    }
+    .account-input:focus {
+      border-color: rgba(6, 182, 212, 0.5);
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.12);
+    }
+    .account-btn {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      border: 0;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 0.35rem;
+    }
+    .account-btn:hover { filter: brightness(1.08); }
+    .account-btn:disabled { opacity: 0.55; cursor: wait; }
+    .account-btn.ghost {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-label);
+      margin-top: 0.75rem;
+    }
+    .account-token {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      word-break: break-all;
+      background: var(--input-bg);
+      border: 1px dashed rgba(6, 182, 212, 0.45);
+      border-radius: 0.75rem;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-main);
+    }
+    .account-note {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      margin-top: 1rem;
+    }
+    .account-error {
+      color: #fca5a5;
+      font-size: 0.82rem;
+      min-height: 1.1rem;
+      margin-top: 0.6rem;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Mandatory account gate: removed only once token + browser key are ready -->
+  <div class="account-gate" id="account-gate">
+    <div class="account-card">
+      <h2 class="account-title">imagine<span>it</span></h2>
+      <p class="account-lead" id="account-lead">Checking this browser…</p>
+      <div id="account-body"></div>
+      <p class="account-note" id="account-note"></p>
+      <p class="account-error" id="account-error"></p>
+    </div>
+  </div>
 
   <!-- Blurred Aesthetic Backlighting Elements -->
   <div class="ambient-glow-1"></div>
@@ -871,6 +1087,25 @@
         </span>
       </div>
       <div class="gpu-worker-list" id="gpu-worker-list"></div>
+    </section>
+
+    <section class="kaggle-panel" id="kaggle-panel">
+      <div class="kaggle-row">
+        <div class="kaggle-copy">
+          <span class="label" style="margin-bottom: 0;">Kaggle GPU</span>
+          <p class="kaggle-hint">Start or stop the imagineitv3 notebook through the browserful agent.</p>
+        </div>
+        <button class="btn-secondary kaggle-btn" id="btn-kaggle-toggle" type="button">Connect Kaggle</button>
+      </div>
+      <details class="kaggle-credentials" id="kaggle-credentials">
+        <summary>Kaggle credentials</summary>
+        <div class="kaggle-fields">
+          <input class="seed-input-field" id="kaggle-email" type="email" placeholder="Kaggle email" autocomplete="username" spellcheck="false">
+          <input class="seed-input-field" id="kaggle-password" type="password" placeholder="Kaggle password" autocomplete="current-password">
+        </div>
+        <p class="kaggle-hint" style="margin-top: 0.6rem;">Used once per request by the browserful agent. The password is never stored in the browser.</p>
+      </details>
+      <div class="kaggle-status" id="kaggle-status" role="status"></div>
     </section>
 
     <main class="control-panel">
@@ -1067,6 +1302,14 @@
 
     // Dynamic configuration loader supporting window.ENV, env.json, and localStorage
     async function initConfig() {
+      // The public deployment reaches the backend through Caddy's gated /ui-api
+      // bridge, so the same-origin path always wins there.
+      if (location.hostname === "imagineit.kitsui.co") {
+        BACKEND_URL = "/ui-api";
+        console.log("Using same-origin /ui-api bridge");
+        return;
+      }
+
       // Priority 1: Check window.ENV (e.g. generated dynamically by env.js)
       if (window.ENV && window.ENV.BACKEND_URL) {
         BACKEND_URL = window.ENV.BACKEND_URL;
@@ -1146,10 +1389,19 @@
     const gpuStatusBadgeText = document.getElementById('gpu-status-badge-text');
     const gpuWorkerList = document.getElementById('gpu-worker-list');
 
+    // Kaggle GPU control elements
+    const btnKaggleToggle = document.getElementById('btn-kaggle-toggle');
+    const kaggleCredentials = document.getElementById('kaggle-credentials');
+    const kaggleEmail = document.getElementById('kaggle-email');
+    const kagglePassword = document.getElementById('kaggle-password');
+    const kaggleStatus = document.getElementById('kaggle-status');
+
     // State variable for seed mode
     let isRandom = true;
     let pollInterval = null;
     let gpuPollInterval = null;
+    let kaggleConnected = false;
+    let kagglePending = false;
 
     // Safety multiplier check function
     function snapTo64(val) {
@@ -1183,8 +1435,104 @@
       return labels[status] || status || "Offline";
     }
 
+    // Kaggle controls
+    function setKaggleStatus(message, kind) {
+      kaggleStatus.textContent = message || "";
+      kaggleStatus.className = "kaggle-status"
+        + (message ? " is-visible" : "")
+        + (kind ? ` is-${kind}` : "");
+    }
+
+    function isKaggleWorker(worker) {
+      // Workers running on Kaggle report kind="kaggle" themselves; the id
+      // prefix stays as a fallback for workers built before that field.
+      if (worker && worker.kind === "kaggle") return true;
+      const id = String((worker && worker.worker_id) || "");
+      return id === "gpu-kaggle" || id.startsWith("gpu-kaggle-");
+    }
+
+    function updateKaggleButton(workers) {
+      kaggleConnected = workers.some(isKaggleWorker);
+      if (kagglePending) return;
+      btnKaggleToggle.textContent = kaggleConnected ? "Disconnect Kaggle GPU" : "Connect Kaggle";
+      btnKaggleToggle.classList.toggle("is-stop", kaggleConnected);
+    }
+
+    function setKagglePending(pending) {
+      kagglePending = pending;
+      btnKaggleToggle.disabled = pending;
+      if (pending) {
+        btnKaggleToggle.textContent = kaggleConnected ? "Stopping…" : "Starting…";
+      } else {
+        btnKaggleToggle.textContent = kaggleConnected ? "Disconnect Kaggle GPU" : "Connect Kaggle";
+        btnKaggleToggle.classList.toggle("is-stop", kaggleConnected);
+      }
+    }
+
+    async function toggleKaggle() {
+      if (kagglePending) return;
+
+      const email = kaggleEmail.value.trim();
+      const password = kagglePassword.value;
+      const hasInput = Boolean(email && password);
+      if (hasInput) localStorage.setItem("KAGGLE_EMAIL", email);
+
+      const action = kaggleConnected ? "disconnect" : "connect";
+      setKagglePending(true);
+      setKaggleStatus(
+        action === "disconnect"
+          ? "Asking browserful to stop the Kaggle instance. This can take a minute."
+          : "Asking browserful to start the Kaggle notebook. This can take a few minutes.",
+        ""
+      );
+
+      try {
+        // Once saved, the account's credentials drive the session; the fields
+        // only need to be filled on the first connect or after a rotation.
+        const response = await accountFetch(`/api/v3/kaggle/${action}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(hasInput ? { email, password } : {}),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (data.detail && data.detail.error === "kaggle_credentials_required") {
+            kaggleCredentials.open = true;
+            kaggleEmail.focus();
+            throw new Error("Save your Kaggle email and password once, then connect.");
+          }
+          throw new Error(
+            typeof data.detail === "string"
+              ? data.detail
+              : data.error || `Request failed (${response.status})`
+          );
+        }
+        if (data.error) throw new Error(data.error);
+        setKaggleStatus(
+          data.report || (action === "disconnect"
+            ? "Stop request finished."
+            : "Start request finished. Waiting for the Kaggle worker to connect…"),
+          "ok"
+        );
+        kagglePassword.value = "";
+      } catch (error) {
+        setKaggleStatus(error.message || "Could not reach the browserful agent.", "error");
+      } finally {
+        setKagglePending(false);
+        fetchGpuWorkers();
+      }
+    }
+
+    function initKaggleControls() {
+      kaggleEmail.value = localStorage.getItem("KAGGLE_EMAIL") || "";
+      if (kaggleControlsBound) return;
+      kaggleControlsBound = true;
+      btnKaggleToggle.addEventListener("click", toggleKaggle);
+    }
+
     function renderGpuWorkers(data) {
       const workers = Array.isArray(data && data.workers) ? data.workers : [];
+      updateKaggleButton(workers);
       gpuWorkerList.textContent = "";
 
       if (workers.length === 0) {
@@ -1253,7 +1601,7 @@
 
     async function fetchGpuWorkers() {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/v3/workers`, { cache: "no-store" });
+        const response = await accountFetch("/api/v3/workers", { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`GPU status request failed (${response.status})`);
         }
@@ -1454,7 +1802,7 @@
       try {
         // Step 1: POST request. 
         // Sending standard application/json payload now that CORS settings are updated.
-        const createRes = await fetch(`${BACKEND_URL}/api/v3/images/inferences`, {
+        const createRes = await accountFetch("/api/v3/images/inferences", {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -1488,7 +1836,7 @@
     function pollInferenceProgress(promiseId) {
       pollInterval = setInterval(async () => {
         try {
-          const progressRes = await fetch(`${BACKEND_URL}/api/v3/images/inferences/${promiseId}`);
+          const progressRes = await accountFetch(`/api/v3/images/inferences/${promiseId}`);
           if (!progressRes.ok) {
             throw new Error(`Progress tracking request failed (${progressRes.status})`);
           }
@@ -1556,7 +1904,7 @@
       renderSteps.textContent = "Waiting for image...";
       
       try {
-        const imageRes = await fetch(`${BACKEND_URL}/api/v3/images/${promiseId}`);
+        const imageRes = await accountFetch(`/api/v3/images/${promiseId}`);
         
         // Handle 404 status (the image may still be uploading to object storage)
         if (imageRes.status === 404) {
@@ -1571,7 +1919,7 @@
           throw new Error(`Raw image payload retrieval failed (${imageRes.status})`);
         }
 
-        const imageBlob = await imageRes.blob();
+        const imageBlob = await openSealedImage(await imageRes.arrayBuffer());
         const tempBlobURL = URL.createObjectURL(imageBlob);
 
         // Render success variables adjustments
@@ -1588,7 +1936,7 @@
         
         // Open the raw GET request URL directly from the backend in a new tab instead of the local blob
         btnFullscreen.onclick = () => {
-          window.open(`${BACKEND_URL}/api/v3/images/${promiseId}`, '_blank');
+          window.open(tempBlobURL, '_blank');
         };
         postActions.style.display = 'flex';
 
@@ -1647,21 +1995,304 @@
       element.addEventListener('change', saveSettingsToCookie);
     });
 
-    // Run Initial SetSetup asynchronously to allow configuration resolving first
-    initConfig().then(() => {
-      // Load saved settings from cookies if available, otherwise apply fallbacks
-      loadSettingsFromCookie();
+    // ------------------------------------------------------------------
+    // Accounts + client-held encryption
+    // ------------------------------------------------------------------
+    const ACCOUNT_TOKEN_KEY = "imagineit.account.token";
+    const ACCOUNT_DB_NAME = "imagineit-account";
+    const ACCOUNT_DB_STORE = "identity";
+    const E2E_INFO = new TextEncoder().encode("imagineit-e2e-v1");
 
-      // Render correct gradient slider track colors
+    const accountGate = document.getElementById("account-gate");
+    const accountLead = document.getElementById("account-lead");
+    const accountBody = document.getElementById("account-body");
+    const accountNote = document.getElementById("account-note");
+    const accountError = document.getElementById("account-error");
+
+    let accountState = { token: null, identity: null, accountId: null };
+    let appStarted = false;
+    let kaggleControlsBound = false;
+
+    function accountClear() {
+      accountBody.replaceChildren();
+      accountError.textContent = "";
+      accountNote.textContent = "";
+    }
+
+    function accountIntro(lead, note) {
+      accountLead.innerHTML = lead;
+      accountNote.textContent = note || "";
+      accountError.textContent = "";
+    }
+
+    function accountButton(label, handler, ghost) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "account-btn" + (ghost ? " ghost" : "");
+      button.textContent = label;
+      button.addEventListener("click", handler);
+      return button;
+    }
+
+    function idbOpen() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(ACCOUNT_DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains(ACCOUNT_DB_STORE)) {
+            request.result.createObjectStore(ACCOUNT_DB_STORE);
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function idbGet(key) {
+      const db = await idbOpen();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(ACCOUNT_DB_STORE, "readonly");
+        const request = tx.objectStore(ACCOUNT_DB_STORE).get(key);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function idbPut(key, value) {
+      const db = await idbOpen();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(ACCOUNT_DB_STORE, "readwrite");
+        tx.objectStore(ACCOUNT_DB_STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function generateIdentity() {
+      const pair = await crypto.subtle.generateKey(
+        { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]
+      );
+      const publicRaw = await crypto.subtle.exportKey("raw", pair.publicKey);
+      const publicKey = btoa(String.fromCharCode(...new Uint8Array(publicRaw)));
+      // Re-import the private half as non-extractable before persisting it.
+      const jwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
+      const privateKey = await crypto.subtle.importKey(
+        "jwk", jwk, { name: "ECDH", namedCurve: "P-256" }, false, ["deriveBits"]
+      );
+      return { privateKey, publicKey };
+    }
+
+    async function openSealedImage(buffer) {
+      const bytes = new Uint8Array(buffer);
+      if (bytes.length < 4 + 65 + 12 + 16) throw new Error("sealed image is too short");
+      if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== "E2E1") {
+        throw new Error("unknown image envelope");
+      }
+      const ephemeralRaw = bytes.slice(4, 69);
+      const nonce = bytes.slice(69, 81);
+      const ciphertext = bytes.slice(81);
+      const ephemeral = await crypto.subtle.importKey(
+        "raw", ephemeralRaw, { name: "ECDH", namedCurve: "P-256" }, false, []
+      );
+      const shared = await crypto.subtle.deriveBits(
+        { name: "ECDH", public: ephemeral }, accountState.identity.privateKey, 256
+      );
+      const hkdf = await crypto.subtle.importKey("raw", shared, "HKDF", false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey(
+        { name: "HKDF", salt: ephemeralRaw, info: E2E_INFO, hash: "SHA-256" },
+        hkdf, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
+      );
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, key, ciphertext);
+      return new Blob([plain], { type: "image/jpeg" });
+    }
+
+    async function accountFetch(path, options = {}) {
+      const headers = new Headers(options.headers || {});
+      if (accountState.token) headers.set("Authorization", `Bearer ${accountState.token}`);
+      const response = await fetch(`${BACKEND_URL}${path}`, { ...options, headers });
+      if (response.status === 401) lockAccount("Your token is no longer valid.");
+      return response;
+    }
+
+    function showGate() { accountGate.classList.remove("is-hidden"); }
+    function hideGate() { accountGate.classList.add("is-hidden"); }
+
+    function lockAccount(message) {
+      localStorage.removeItem(ACCOUNT_TOKEN_KEY);
+      accountState = { token: null, identity: null, accountId: null };
+      appStarted = false;
+      if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+      if (gpuPollInterval) { clearInterval(gpuPollInterval); gpuPollInterval = null; }
+      showGate();
+      renderWelcome(message || "");
+    }
+
+    function renderWelcome(message) {
+      accountClear();
+      accountIntro(
+        "ImagineIt is account-only. Prompts are sealed in the database and images are sealed in storage — the key that opens them never leaves this browser.",
+        "The token created at signup is the only way back into this account. There is no recovery if you clear site data."
+      );
+      if (message) accountError.textContent = message;
+      accountBody.append(accountButton("Create my account", createAccountFlow));
+      const input = document.createElement("input");
+      input.className = "account-input";
+      input.type = "text";
+      input.placeholder = "imi_… account token";
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.style.marginTop = "1rem";
+      accountBody.append(input);
+      accountBody.append(
+        accountButton("Sign in with an existing token", () => signInWithToken(input.value), true)
+      );
+    }
+
+    function renderNoKey() {
+      accountClear();
+      accountIntro(
+        "This browser does not hold the encryption key for that account.",
+        "Without the key nothing can be decrypted — the server only stores sealed data. Use the browser that created the account, or start a new account here."
+      );
+      accountBody.append(accountButton("Create a new account", () => lockAccount("")));
+    }
+
+    function showToken(token) {
+      accountClear();
+      accountIntro(
+        "Account created. Copy this token now — it is shown once.",
+        "The token only signs you in. Keep it private. Your encryption key stays in this browser."
+      );
+      const box = document.createElement("div");
+      box.className = "account-token";
+      box.textContent = token;
+      accountBody.append(box);
+      const copy = accountButton("Copy token", async () => {
+        try {
+          await navigator.clipboard.writeText(token);
+          copy.textContent = "Copied";
+        } catch (error) {
+          copy.textContent = "Select and copy manually";
+        }
+      }, true);
+      accountBody.append(copy);
+      accountBody.append(accountButton("I saved it — continue", startApp));
+    }
+
+    async function createAccountFlow() {
+      showGate();
+      accountIntro("Generating your encryption key…", "");
+      try {
+        const identity = await generateIdentity();
+        const response = await fetch(`${BACKEND_URL}/api/v3/accounts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ public_key: identity.publicKey }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.detail || `Signup failed (${response.status})`);
+        }
+        await idbPut("identity", {
+          privateKey: identity.privateKey,
+          publicKey: identity.publicKey,
+          accountId: data.account_id,
+        });
+        localStorage.setItem(ACCOUNT_TOKEN_KEY, data.token);
+        accountState = { token: data.token, identity, accountId: data.account_id };
+        showToken(data.token);
+      } catch (error) {
+        accountClear();
+        accountIntro("Could not create the account.", "");
+        accountError.textContent = error.message || "Unknown error";
+        accountBody.append(accountButton("Try again", createAccountFlow, true));
+      }
+    }
+
+    async function signInWithToken(raw) {
+      const token = String(raw || "").trim();
+      if (!token) {
+        accountError.textContent = "Paste the token first.";
+        return;
+      }
+      accountIntro("Checking the token…", "");
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/v3/account`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.status === 401) throw new Error("That token is not valid.");
+        if (!response.ok) throw new Error(`Account check failed (${response.status})`);
+        const data = await response.json();
+        const identity = await idbGet("identity");
+        if (!identity || identity.accountId !== data.account_id) {
+          localStorage.removeItem(ACCOUNT_TOKEN_KEY);
+          accountState = { token: null, identity: null, accountId: null };
+          renderNoKey();
+          return;
+        }
+        localStorage.setItem(ACCOUNT_TOKEN_KEY, token);
+        accountState = { token, identity, accountId: data.account_id };
+        startApp();
+      } catch (error) {
+        renderWelcome(error.message || "Unknown error");
+      }
+    }
+
+    async function bootAccount() {
+      const token = localStorage.getItem(ACCOUNT_TOKEN_KEY) || "";
+      if (!token) {
+        showGate();
+        renderWelcome("");
+        return;
+      }
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/v3/account`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.status === 401) {
+          localStorage.removeItem(ACCOUNT_TOKEN_KEY);
+          showGate();
+          renderWelcome("That token is no longer valid.");
+          return;
+        }
+        if (!response.ok) throw new Error(`Account check failed (${response.status})`);
+        const data = await response.json();
+        const identity = await idbGet("identity");
+        if (!identity || identity.accountId !== data.account_id) {
+          showGate();
+          renderNoKey();
+          return;
+        }
+        accountState = { token, identity, accountId: data.account_id };
+        startApp();
+      } catch (error) {
+        showGate();
+        accountClear();
+        accountIntro("Could not reach the account service.", "");
+        accountError.textContent = error.message || "Unknown error";
+        accountBody.append(accountButton("Retry", bootAccount, true));
+      }
+    }
+
+    function startApp() {
+      if (!accountState.token || !accountState.identity) {
+        accountError.textContent = "Sign in first.";
+        return;
+      }
+      if (appStarted) return;
+      appStarted = true;
+      hideGate();
+      loadSettingsFromCookie();
       updateSliderTrack(stepsRange);
       updateSliderTrack(cfgRange);
       updateSliderTrack(clipRange);
       updateSliderTrack(widthRange);
       updateSliderTrack(heightRange);
-
-      // Start the independent GPU backend presence poller
       startGpuStatusPolling();
-    });
+      initKaggleControls();
+    }
+
+    // Resolve configuration, then require an account before anything runs.
+    initConfig().then(() => bootAccount());
   </script>
 </body>
 </html>

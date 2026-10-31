@@ -7,7 +7,6 @@ the queue so a crashed GPU worker cannot strand a job forever.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -15,6 +14,7 @@ from sqlalchemy import select, update
 
 from app.database.db import db_session
 from app.database.models import Image
+from app.services import param_cache
 
 ACTIVE_STATUSES = ("dispatched", "running")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
@@ -25,19 +25,15 @@ def utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def _params(row: Image) -> dict[str, Any]:
-    if not row.params_json:
-        return {}
-    try:
-        value = json.loads(row.params_json)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
+def job_to_dict(row: Image, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Public job view.
 
-
-def job_to_dict(row: Image) -> dict[str, Any]:
+    ``params`` only carries the transient plaintext copy the dispatcher needs;
+    the API never asks for it, so callers outside the gateway get an empty dict.
+    """
     return {
         "promise_id": row.promise_id,
+        "account_id": row.account_id,
         "status": row.status,
         "steps_status": row.steps_status,
         "steps_completed": row.steps_completed,
@@ -45,28 +41,42 @@ def job_to_dict(row: Image) -> dict[str, Any]:
         "error": row.error,
         "worker_id": row.worker_id,
         "attempt": row.attempt,
-        "params": _params(row),
+        "params": params or {},
     }
 
 
-async def create_job(promise_id: str, params: dict[str, Any], steps: int) -> None:
+async def create_job(
+    promise_id: str,
+    account_id: str,
+    params: dict[str, Any],
+    sealed_params: str,
+    steps: int,
+) -> None:
+    # The plaintext copy lives only in this process; the row keeps ciphertext.
+    param_cache.put(promise_id, params)
     async with db_session() as session:
         session.add(
             Image(
                 promise_id=promise_id,
+                account_id=account_id,
                 status="queued",
                 steps_status=f"0/{steps}",
                 steps_completed=0,
                 steps_total=steps,
-                params_json=json.dumps(params, separators=(",", ":")),
+                params_json=sealed_params,
             )
         )
         await session.commit()
 
 
-async def get_job(promise_id: str) -> dict[str, Any] | None:
+async def get_job(
+    promise_id: str, account_id: str | None = None
+) -> dict[str, Any] | None:
     async with db_session() as session:
-        row = await session.scalar(select(Image).where(Image.promise_id == promise_id))
+        stmt = select(Image).where(Image.promise_id == promise_id)
+        if account_id is not None:
+            stmt = stmt.where(Image.account_id == account_id)
+        row = await session.scalar(stmt)
         return job_to_dict(row) if row else None
 
 
@@ -84,6 +94,17 @@ async def claim_next_job(worker_id: str, lease_seconds: int) -> dict[str, Any] |
         if not row:
             return None
 
+        params = param_cache.get(row.promise_id)
+        if params is None:
+            # The app restarted after accepting this job, so the only copy of
+            # the prompt is gone (the row holds ciphertext the server cannot
+            # open).  Fail it instead of handing the worker an empty prompt.
+            row.status = "failed"
+            row.error = "job parameters expired; please submit the prompt again"
+            row.lease_expires_at = None
+            await session.commit()
+            return None
+
         total = row.steps_total or 0
         row.status = "dispatched"
         row.worker_id = worker_id
@@ -93,7 +114,7 @@ async def claim_next_job(worker_id: str, lease_seconds: int) -> dict[str, Any] |
         row.steps_status = f"0/{total}"
         row.error = None
         await session.commit()
-        return job_to_dict(row)
+        return job_to_dict(row, params)
 
 
 async def get_assignment(
@@ -108,7 +129,7 @@ async def get_assignment(
                 Image.status.in_(ACTIVE_STATUSES),
             )
         )
-        return job_to_dict(row) if row else None
+        return job_to_dict(row, param_cache.get(row.promise_id)) if row else None
 
 
 async def mark_running(
@@ -204,6 +225,8 @@ async def complete_job(
             )
         )
         await session.commit()
+        if result.rowcount:
+            param_cache.pop(promise_id)
         return bool(result.rowcount)
 
 
@@ -224,6 +247,8 @@ async def fail_job(promise_id: str, attempt: int, worker_id: str, error: str) ->
             )
         )
         await session.commit()
+        if result.rowcount:
+            param_cache.pop(promise_id)
         return bool(result.rowcount)
 
 
@@ -242,6 +267,8 @@ async def cancel_job(
             .values(status="cancelled", error=reason[:4000], lease_expires_at=None)
         )
         await session.commit()
+        if result.rowcount:
+            param_cache.pop(promise_id)
         return bool(result.rowcount)
 
 
@@ -330,3 +357,16 @@ async def expire_leases() -> int:
         )
         await session.commit()
         return max(result.rowcount or 0, 0)
+
+
+async def fail_unfinished(reason: str) -> int:
+    """Fail jobs whose plaintext parameters died with the previous process."""
+    async with db_session() as session:
+        result = await session.execute(
+            update(Image)
+            .where(Image.status.in_(("queued",) + ACTIVE_STATUSES))
+            .values(status="failed", error=reason[:4000], lease_expires_at=None)
+        )
+        await session.commit()
+    param_cache.clear()
+    return int(result.rowcount or 0)

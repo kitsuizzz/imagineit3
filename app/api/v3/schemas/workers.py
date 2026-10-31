@@ -6,6 +6,7 @@ class WorkerInfo(BaseModel):
     name: str
     model: str
     device: str
+    kind: str = ""
     status: str
     connected_seconds: int
     last_seen_seconds_ago: int

@@ -38,7 +38,7 @@ def _upload_image(app: FastAPI, image_data: io.BytesIO, object_name: str):
         object_name=object_name,
         data=image_data,
         length=len(image_data.getvalue()),
-        content_type="image/jpeg",
+        content_type="application/octet-stream",
     )
 
 

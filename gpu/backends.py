@@ -41,7 +41,6 @@ else:
         UniPCMultistepScheduler,
     )
     from transformers import CLIPTextModel, CLIPTextModelWithProjection  # type: ignore
-    from transformers.modeling_outputs import BaseModelOutputWithPooling  # type: ignore
 
 
 StepCallback = Callable[[int, int], Awaitable[bool]]
@@ -128,13 +127,18 @@ class LoadedSDXL:
     def _encode_text(self, input_ids, encoder, clip_skip: int):
         with torch.no_grad():
             outputs = encoder(input_ids, output_hidden_states=True)
-        text_embeds = (
-            None
-            if isinstance(outputs, BaseModelOutputWithPooling)
-            else outputs.text_embeds[0:1]
-        )
+
+        # transformers 5 flattened CLIPTextModel: the final layer norm now
+        # lives on the model itself instead of on model.text_model. Accept
+        # both layouts so the worker runs on 4.x and 5.x alike.
+        text_model = getattr(encoder, "text_model", encoder)
+
+        text_embeds = getattr(outputs, "text_embeds", None)
+        if text_embeds is not None:
+            text_embeds = text_embeds[0:1]
+
         hidden_states = (
-            encoder.text_model.final_layer_norm(outputs.hidden_states[-2])
+            text_model.final_layer_norm(outputs.hidden_states[-2])
             if clip_skip == 1
             else outputs.hidden_states[-clip_skip]
         )

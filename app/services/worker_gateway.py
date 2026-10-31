@@ -23,6 +23,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
 from app.database.minio import upload_image
+from app.services import accounts, e2e
 from app.services import jobs
 from app.worker_auth import WorkerKeyStore
 from shared.protocol import (
@@ -70,6 +71,7 @@ class WorkerConnection:
     name: str = ""
     model: str = ""
     device: str = ""
+    kind: str = ""  # "kaggle" when the worker reports a Kaggle host
     capabilities: dict[str, Any] = field(default_factory=dict)
     status: str = "loading"  # loading | ready | dispatching | busy
     active_job_id: str | None = None
@@ -150,6 +152,7 @@ class WorkerGateway:
                     "name": conn.name,
                     "model": conn.model,
                     "device": conn.device,
+                    "kind": conn.kind,
                     "status": conn.status,
                     "connected_seconds": max(0, int(now - conn.connected_at)),
                     "last_seen_seconds_ago": max(0, int(now - conn.last_seen)),
@@ -364,6 +367,7 @@ class WorkerGateway:
         conn.name = str(payload.get("name", ""))[:200]
         conn.model = str(payload.get("model", ""))[:200]
         conn.device = str(payload.get("device", ""))[:64]
+        conn.kind = str(payload.get("kind", ""))[:32]
         caps = payload.get("capabilities")
         conn.capabilities = caps if isinstance(caps, dict) else {}
         active = self._active_from(payload)
@@ -562,8 +566,20 @@ class WorkerGateway:
             self.wake.set()
             return
 
+        public_key = await accounts.public_key_for(assignment.get("account_id"))
+        if not public_key:
+            await self._reject_result(conn, job_id, attempt, "unknown account")
+            return
+
         try:
-            await upload_image(self.app, io.BytesIO(image_bytes), job_id)
+            sealed = e2e.seal(public_key, image_bytes)
+        except Exception:
+            logger.exception("Failed to seal result for %s", job_id)
+            await self._reject_result(conn, job_id, attempt, "encryption failed")
+            return
+
+        try:
+            await upload_image(self.app, io.BytesIO(sealed), job_id)
         except Exception:
             logger.exception("Failed to store result for %s", job_id)
             await conn.send(

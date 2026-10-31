@@ -13,3 +13,6 @@ webapp/env.json
 gpu_workers.json
 *.worker.json
 *.key
+
+# Runtime logs
+logs/

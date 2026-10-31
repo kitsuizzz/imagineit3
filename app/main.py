@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -11,6 +12,7 @@ from app.api.internal.router import router as internal_router
 from app.api.v3 import v3_router
 from app.database.minio import init_minio
 from app.database.valkey import init_valkey
+from app.services import jobs
 from app.services.dispatcher import JobDispatcher
 from app.services.worker_gateway import WorkerGateway
 from app.worker_auth import WorkerKeyStore
@@ -29,8 +31,19 @@ async def lifespan(app: FastAPI):
     # Keep a reference to the loop for any thread-pool integrations.
     app.state.event_loop = asyncio.get_running_loop()
 
+    if len(os.getenv("APP_SECRET", "").strip()) < 32:
+        raise RuntimeError("APP_SECRET must be set to at least 32 characters")
+
     await init_minio(app)
     init_valkey(app)
+
+    # Plaintext prompts only ever live in process memory, so anything that was
+    # still unfinished when the process died can no longer be rendered.
+    orphaned = await jobs.fail_unfinished(
+        "server restarted before the job finished; submit the prompt again"
+    )
+    if orphaned:
+        logger.warning("Failed %s unfinished job(s) after restart", orphaned)
 
     app.state.worker_keys = WorkerKeyStore.from_env_or_file()
     app.state.gateway = WorkerGateway(app, app.state.worker_keys)
