@@ -55,6 +55,29 @@ async def imagen_status(promise_id: str, account: Account = Depends(require_acco
     return job
 
 
+@router.get("")
+async def list_images(account: Account = Depends(require_account), limit: int = 60):
+    limit = max(1, min(int(limit), 200))
+    async with db_session() as session:
+        rows = (
+            await session.scalars(
+                select(Image)
+                .where(Image.account_id == account.id, Image.status == "succeeded")
+                .order_by(Image.created_at.desc(), Image.id.desc())
+                .limit(limit)
+            )
+        ).all()
+    return {
+        "images": [
+            {
+                "promise_id": row.promise_id,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in rows
+        ]
+    }
+
+
 @router.get("/{promise_id}")
 async def get_image(
     req: Request,

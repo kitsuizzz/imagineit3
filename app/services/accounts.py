@@ -38,6 +38,35 @@ async def account_for_token(token: str) -> Account | None:
         )
 
 
+async def set_public_key(
+    account_id: str, public_key: str, wrapped_key: str | None = None
+) -> None:
+    e2e.load_public_key(public_key)
+    async with db_session() as session:
+        account = await session.get(Account, account_id)
+        if account is None:
+            raise ValueError("unknown account")
+        account.public_key = public_key
+        if wrapped_key is not None:
+            account.wrapped_key = wrapped_key
+        await session.commit()
+
+
+async def set_wrapped_key(account_id: str, wrapped_key: str) -> None:
+    async with db_session() as session:
+        account = await session.get(Account, account_id)
+        if account is None:
+            raise ValueError("unknown account")
+        account.wrapped_key = wrapped_key
+        await session.commit()
+
+
+async def get_wrapped_key(account_id: str) -> str | None:
+    async with db_session() as session:
+        account = await session.get(Account, account_id)
+    return account.wrapped_key if account else None
+
+
 async def get_account(account_id: str) -> Account | None:
     async with db_session() as session:
         return await session.scalar(select(Account).where(Account.id == account_id))
@@ -51,12 +80,23 @@ async def public_key_for(account_id: str | None) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
-# Kaggle credentials (server-encrypted, never returned to the client)
+# Kaggle API key (server-encrypted, never returned to the client)
 # --------------------------------------------------------------------------- #
 
 
-async def save_kaggle_credentials(account_id: str, email: str, password: str) -> None:
-    payload = json.dumps({"email": email, "password": password}).encode("utf-8")
+async def save_kaggle_api_key(
+    account_id: str,
+    api_key: str,
+    kernel_ref: str | None = None,
+    username: str | None = None,
+) -> None:
+    payload = json.dumps(
+        {
+            "api_key": api_key.strip(),
+            "kernel_ref": (kernel_ref or "").strip(),
+            "username": (username or "").strip(),
+        }
+    ).encode("utf-8")
     secret = e2e.encrypt_server_secret(payload)
     async with db_session() as session:
         row = await session.get(KaggleCredential, account_id)
@@ -67,7 +107,7 @@ async def save_kaggle_credentials(account_id: str, email: str, password: str) ->
         await session.commit()
 
 
-async def load_kaggle_credentials(account_id: str) -> tuple[str, str] | None:
+async def load_kaggle_api_key(account_id: str) -> str | None:
     async with db_session() as session:
         row = await session.get(KaggleCredential, account_id)
     if row is None:
@@ -76,11 +116,10 @@ async def load_kaggle_credentials(account_id: str) -> tuple[str, str] | None:
         payload = json.loads(e2e.decrypt_server_secret(row.secret))
     except (e2e.EnvelopeError, json.JSONDecodeError):
         return None
-    email = payload.get("email")
-    password = payload.get("password")
-    if not isinstance(email, str) or not isinstance(password, str):
+    api_key = payload.get("api_key")
+    if not isinstance(api_key, str) or not api_key.strip():
         return None
-    return email, password
+    return api_key.strip()
 
 
 async def delete_kaggle_credentials(account_id: str) -> None:
@@ -91,7 +130,33 @@ async def delete_kaggle_credentials(account_id: str) -> None:
         await session.commit()
 
 
-async def has_kaggle_credentials(account_id: str) -> bool:
+async def load_kaggle_kernel_ref(account_id: str) -> str | None:
     async with db_session() as session:
         row = await session.get(KaggleCredential, account_id)
-    return row is not None
+    if row is None:
+        return None
+    try:
+        payload = json.loads(e2e.decrypt_server_secret(row.secret))
+    except (e2e.EnvelopeError, json.JSONDecodeError):
+        return None
+    ref = payload.get("kernel_ref")
+    return ref.strip() if isinstance(ref, str) and ref.strip() else None
+
+
+async def load_kaggle_username(account_id: str) -> str | None:
+    async with db_session() as session:
+        row = await session.get(KaggleCredential, account_id)
+    if row is None:
+        return None
+    try:
+        payload = json.loads(e2e.decrypt_server_secret(row.secret))
+    except (e2e.EnvelopeError, json.JSONDecodeError):
+        return None
+    name = payload.get("username")
+    return name.strip() if isinstance(name, str) and name.strip() else None
+
+
+async def has_kaggle_credentials(account_id: str) -> bool:
+    # A row from the old email/password flow decrypts without an api_key, so
+    # treat only a loadable API key as "configured".
+    return await load_kaggle_api_key(account_id) is not None

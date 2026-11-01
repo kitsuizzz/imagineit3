@@ -33,6 +33,9 @@
       padding: 0;
     }
 
+    /* Author display rules must not resurrect hidden panes. */
+    [hidden] { display: none !important; }
+
     body {
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
       background-color: var(--bg-dark);
@@ -623,8 +626,13 @@
       bottom: 3px;
       background-color: var(--text-muted);
       border-radius: 50%;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition:
+        transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+        background-color 0.25s ease,
+        box-shadow 0.25s ease;
     }
+    .switch:active .switch-slider { transform: scale(0.96); }
+    .toggle-label { transition: color 0.25s ease; }
 
     /* Toggle Switch checked states */
     .switch input:checked + .switch-slider {
@@ -967,7 +975,14 @@
       background: radial-gradient(1200px 600px at 50% -10%, #171d24 0%, var(--bg-dark) 65%);
       backdrop-filter: blur(8px);
     }
-    .account-gate.is-hidden { display: none; }
+    .account-gate {
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .account-gate.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
     .account-card {
       width: min(94vw, 440px);
       background: var(--card-bg);
@@ -1051,6 +1066,258 @@
       min-height: 1.1rem;
       margin-top: 0.6rem;
     }
+
+    /* Top bar + tabs */
+    .topbar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      background: rgba(11, 8, 25, 0.55);
+      backdrop-filter: blur(24px) saturate(140%);
+      position: sticky;
+      top: 0.75rem;
+      z-index: 20;
+    }
+    .topbar-brand {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .topbar-brand span { color: var(--accent-cyan); }
+    .topbar-tabs {
+      display: flex;
+      gap: 0.25rem;
+      padding: 0.25rem;
+      border: 1px solid var(--card-border);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .topbar-tab {
+      border: 0;
+      transition: background 0.25s ease, color 0.2s ease;
+      background: transparent;
+      color: var(--text-label);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.45rem 1rem;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .topbar-tab.is-active {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      color: #fff;
+    }
+    .topbar-tab:not(.is-active):hover { color: var(--text-main); }
+    .topbar-account {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+    .topbar-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-label);
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .topbar-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+    }
+    .topbar-status.is-off .topbar-status-dot {
+      background: #64748b;
+      box-shadow: none;
+    }
+    .topbar-signout { border: 1px solid var(--card-border); }
+    @media (max-width: 620px) {
+      .topbar { flex-wrap: wrap; }
+      .topbar-account { width: 100%; justify-content: flex-end; }
+    }
+
+    /* Gallery */
+    .gallery-view { width: 100%; }
+    .gallery-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .gallery-count { color: var(--text-muted); font-size: 0.8rem; }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 0.9rem;
+    }
+    .gallery-item {
+      position: relative;
+      aspect-ratio: 1;
+      padding: 0;
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      overflow: hidden;
+      background: var(--input-bg);
+      cursor: pointer;
+    }
+    .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery-item:hover { border-color: rgba(6, 182, 212, 0.5); }
+    .gallery-empty {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 3rem 0;
+      font-size: 0.9rem;
+    }
+
+    /* Kaggle API key row */
+    .kaggle-key-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.9rem;
+    }
+    .kaggle-key-row input { flex: 1; min-width: 0; }
+
+    /* Auto generation */
+    .auto-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.85rem;
+    }
+    .auto-toggle { flex: 0 0 auto; }
+    .auto-toggle.is-on {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border-color: transparent;
+      color: #fff;
+    }
+    .auto-status { color: var(--text-muted); font-size: 0.8rem; }
+    .auto-status.is-error { color: #fca5a5; }
+    .auto-strip {
+      width: 100%;
+      display: flex;
+      gap: 0.6rem;
+      overflow-x: auto;
+      padding: 0.75rem 0 0;
+    }
+    .auto-thumb {
+      flex: 0 0 84px;
+      width: 84px;
+      height: 84px;
+      padding: 0;
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      background: var(--input-bg);
+      cursor: pointer;
+    }
+    .auto-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .auto-thumb:hover { border-color: rgba(6, 182, 212, 0.5); }
+
+    .gpu-add-toggle { width: 100%; margin-top: 1rem; }
+    .gpu-add-panel {
+      width: 100%;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      margin-top: 0;
+      border-top: 1px solid transparent;
+      padding-top: 0;
+      transition:
+        max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.22s ease,
+        margin-top 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+        padding-top 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.3s ease;
+    }
+    .gpu-add-panel.is-open {
+      max-height: 2200px;
+      opacity: 1;
+      margin-top: 0.9rem;
+      border-top-color: var(--card-border);
+      padding-top: 0.9rem;
+    }
+    .gpu-add-body:not([hidden]) { animation: paneIn 0.24s ease; }
+    .worker-key-output:not([hidden]),
+    #btn-worker-key-download:not([hidden]) { animation: paneIn 0.24s ease; }
+    @keyframes paneIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: none; }
+    }
+    .gpu-add-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.85rem; }
+    .gpu-add-tab {
+      flex: 1;
+      transition:
+        background 0.25s ease,
+        color 0.2s ease,
+        border-color 0.25s ease,
+        transform 0.15s ease;
+      border: 1px solid var(--card-border);
+      background: transparent;
+      color: var(--text-label);
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.55rem 0.8rem;
+      border-radius: 0.6rem;
+      cursor: pointer;
+    }
+    .gpu-add-tab.is-active {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border-color: transparent;
+      color: #fff;
+    }
+
+    /* Per-user worker keys */
+    .worker-key-panel {
+      margin-top: 1rem;
+      border-top: 1px solid var(--card-border);
+      padding-top: 0.9rem;
+      width: 100%;
+    }
+    .worker-key-panel summary {
+      color: var(--text-label);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .worker-key-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin: 0.7rem 0;
+    }
+    .worker-key-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .worker-key-output {
+      white-space: pre-wrap;
+      word-break: break-all;
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 0.8rem;
+      font-size: 0.75rem;
+      margin-top: 0.7rem;
+      color: var(--text-main);
+    }
   </style>
 </head>
 <body>
@@ -1073,7 +1340,22 @@
   <!-- Primary Wrapper -->
   <div class="app-container">
     
-    <h1 class="brand-title">ImagineIt</h1>
+    <header class="topbar">
+      <div class="topbar-brand">Imagine<span>It</span></div>
+      <nav class="topbar-tabs" role="tablist" aria-label="Sections">
+        <button class="topbar-tab is-active" id="tab-generation" type="button" role="tab" aria-selected="true">Generation</button>
+        <button class="topbar-tab" id="tab-gallery" type="button" role="tab" aria-selected="false">Gallery</button>
+      </nav>
+      <div class="topbar-account">
+        <span class="topbar-status is-off" id="account-chip">
+          <span class="topbar-status-dot"></span>
+          <span id="account-chip-text">Signed out</span>
+        </span>
+        <button class="topbar-tab topbar-signout" id="btn-sign-out" type="button" hidden>Sign out</button>
+      </div>
+    </header>
+
+    <div id="view-generation">
 
     <section class="gpu-status-panel" id="gpu-status-panel" aria-live="polite">
       <div class="gpu-status-header">
@@ -1087,25 +1369,34 @@
         </span>
       </div>
       <div class="gpu-worker-list" id="gpu-worker-list"></div>
-    </section>
 
-    <section class="kaggle-panel" id="kaggle-panel">
-      <div class="kaggle-row">
-        <div class="kaggle-copy">
-          <span class="label" style="margin-bottom: 0;">Kaggle GPU</span>
-          <p class="kaggle-hint">Start or stop the imagineitv3 notebook through the browserful agent.</p>
+      <button class="btn-secondary gpu-add-toggle" id="btn-gpu-add" type="button">Add GPU backend</button>
+
+      <div class="gpu-add-panel" id="gpu-add-panel">
+        <div class="gpu-add-tabs" role="tablist">
+          <button class="gpu-add-tab is-active" id="tab-byog" type="button" role="tab">Your machine</button>
+          <button class="gpu-add-tab" id="tab-kaggle" type="button" role="tab">Kaggle</button>
         </div>
-        <button class="btn-secondary kaggle-btn" id="btn-kaggle-toggle" type="button">Connect Kaggle</button>
+
+        <div class="gpu-add-body" id="pane-byog">
+          <p class="kaggle-hint">Run a worker with this key; only your jobs will use that GPU.</p>
+          <p class="kaggle-hint" style="margin-top:.35rem"><code>python gpu_worker.py --app-url wss://imagineit.kitsui.co/internal/v1/workers/ws --key-file &lt;downloaded.json&gt; --gpus auto</code></p>
+          <div class="worker-key-list" id="worker-key-list"></div>
+          <pre class="worker-key-output" id="worker-key-output" hidden></pre>
+          <a class="btn-secondary" id="btn-worker-key-download" href="#" download="worker.json" hidden>Download key file</a>
+        </div>
+
+        <div class="gpu-add-body" id="pane-kaggle" hidden>
+          <p class="kaggle-hint">Start or stop the imagineitv3 notebook with your own Kaggle API key.</p>
+          <div class="kaggle-key-row">
+            <input class="seed-input-field" id="kaggle-api-key" type="password" placeholder="Kaggle API key (KGAT_…)" autocomplete="off" spellcheck="false">
+            <button class="btn-secondary" id="btn-kaggle-save" type="button">Save key</button>
+          </div>
+          <button class="btn-secondary kaggle-btn" id="btn-kaggle-toggle" type="button" style="margin-top:.75rem">Connect Kaggle</button>
+          <p class="kaggle-hint" style="margin-top:.6rem;">If the notebook does not exist under your username, it is created on connect with your worker key injected.</p>
+          <div class="kaggle-status" id="kaggle-status" role="status"></div>
+        </div>
       </div>
-      <details class="kaggle-credentials" id="kaggle-credentials">
-        <summary>Kaggle credentials</summary>
-        <div class="kaggle-fields">
-          <input class="seed-input-field" id="kaggle-email" type="email" placeholder="Kaggle email" autocomplete="username" spellcheck="false">
-          <input class="seed-input-field" id="kaggle-password" type="password" placeholder="Kaggle password" autocomplete="current-password">
-        </div>
-        <p class="kaggle-hint" style="margin-top: 0.6rem;">Used once per request by the browserful agent. The password is never stored in the browser.</p>
-      </details>
-      <div class="kaggle-status" id="kaggle-status" role="status"></div>
     </section>
 
     <main class="control-panel">
@@ -1219,6 +1510,11 @@
         <span id="submit-text">ImagineIt</span>
       </button>
 
+      <div class="auto-row">
+        <button class="btn-secondary auto-toggle" id="btn-auto-toggle" type="button">Auto generate</button>
+        <span class="auto-status" id="auto-status">Off</span>
+      </div>
+
     </main>
 
     <!-- Live Canvas Preview Card Container -->
@@ -1265,6 +1561,19 @@
         <span class="error-reason" id="error-message">Could not connect to the local inference backend server. Make sure it is running.</span>
       </div>
 
+    </section>
+
+    <div class="auto-strip" id="auto-strip"></div>
+
+    </div><!-- /view-generation -->
+
+    <section id="view-gallery" class="gallery-view" hidden>
+      <div class="gallery-head">
+        <span class="label" style="margin-bottom:0;">Gallery</span>
+        <span class="gallery-count" id="gallery-count"></span>
+      </div>
+      <div class="gallery-grid" id="gallery-grid"></div>
+      <p class="gallery-empty" id="gallery-empty" hidden>Nothing here yet — generate something.</p>
     </section>
 
   </div>
@@ -1391,10 +1700,40 @@
 
     // Kaggle GPU control elements
     const btnKaggleToggle = document.getElementById('btn-kaggle-toggle');
-    const kaggleCredentials = document.getElementById('kaggle-credentials');
-    const kaggleEmail = document.getElementById('kaggle-email');
-    const kagglePassword = document.getElementById('kaggle-password');
+    const btnKaggleSave = document.getElementById('btn-kaggle-save');
+    const kaggleApiKey = document.getElementById('kaggle-api-key');
     const kaggleStatus = document.getElementById('kaggle-status');
+
+    const btnGpuAdd = document.getElementById('btn-gpu-add');
+    const gpuAddPanel = document.getElementById('gpu-add-panel');
+    const tabByog = document.getElementById('tab-byog');
+    const tabKaggle = document.getElementById('tab-kaggle');
+    const paneByog = document.getElementById('pane-byog');
+    const paneKaggle = document.getElementById('pane-kaggle');
+    let gpuAddBound = false;
+
+    function showBackendPane(name) {
+      const kaggle = name === 'kaggle';
+      paneByog.hidden = kaggle;
+      paneKaggle.hidden = !kaggle;
+      tabByog.classList.toggle('is-active', !kaggle);
+      tabKaggle.classList.toggle('is-active', kaggle);
+    }
+
+    function bindGpuAdd() {
+      if (gpuAddBound) return;
+      gpuAddBound = true;
+      btnGpuAdd.addEventListener('click', () => {
+        const open = gpuAddPanel.classList.toggle('is-open');
+        btnGpuAdd.textContent = open ? 'Hide options' : 'Add GPU backend';
+        if (open) ensureCurrentWorkerKey();
+      });
+      tabByog.addEventListener('click', () => {
+        showBackendPane('byog');
+        ensureCurrentWorkerKey();
+      });
+      tabKaggle.addEventListener('click', () => showBackendPane('kaggle'));
+    }
 
     // State variable for seed mode
     let isRandom = true;
@@ -1402,6 +1741,7 @@
     let gpuPollInterval = null;
     let kaggleConnected = false;
     let kagglePending = false;
+    let kaggleKeyConfigured = false;
 
     // Safety multiplier check function
     function snapTo64(val) {
@@ -1469,37 +1809,83 @@
       }
     }
 
+    async function refreshKaggleKeyState() {
+      try {
+        const response = await accountFetch("/api/v3/kaggle/credentials");
+        if (response.ok) {
+          const data = await response.json();
+          kaggleKeyConfigured = Boolean(data.configured);
+          // Username and kernel are resolved server-side from the API key.
+        }
+      } catch (error) {
+        // Keep the previous state; saving still works.
+      }
+      kaggleApiKey.placeholder = kaggleKeyConfigured
+        ? "Kaggle API key saved"
+        : "Kaggle API key (KGAT_…)";
+    }
+
+    async function saveKaggleKey() {
+      const value = kaggleApiKey.value.trim();
+      if (!value) {
+        kaggleApiKey.focus();
+        setKaggleStatus("Paste your Kaggle API key first.", "error");
+        return;
+      }
+      btnKaggleSave.disabled = true;
+      try {
+        const response = await accountFetch("/api/v3/kaggle/credentials", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: value }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            typeof data.detail === "string"
+              ? data.detail
+              : `Save failed (${response.status})`
+          );
+        }
+        kaggleKeyConfigured = true;
+        kaggleApiKey.value = "";
+        kaggleApiKey.placeholder = "Kaggle API key saved";
+        setKaggleStatus("Kaggle API key saved.", "ok");
+      } catch (error) {
+        setKaggleStatus(error.message || "Could not save the key.", "error");
+      } finally {
+        btnKaggleSave.disabled = false;
+      }
+    }
+
     async function toggleKaggle() {
       if (kagglePending) return;
 
-      const email = kaggleEmail.value.trim();
-      const password = kagglePassword.value;
-      const hasInput = Boolean(email && password);
-      if (hasInput) localStorage.setItem("KAGGLE_EMAIL", email);
-
       const action = kaggleConnected ? "disconnect" : "connect";
+      if (action === "connect" && !kaggleKeyConfigured) {
+        kaggleApiKey.focus();
+        setKaggleStatus("Save your Kaggle API key first.", "error");
+        return;
+      }
+
       setKagglePending(true);
       setKaggleStatus(
         action === "disconnect"
-          ? "Asking browserful to stop the Kaggle instance. This can take a minute."
-          : "Asking browserful to start the Kaggle notebook. This can take a few minutes.",
+          ? "Asking the Kaggle worker to stop and end the session…"
+          : "Starting your imagineitv3 notebook on Kaggle…",
         ""
       );
 
       try {
-        // Once saved, the account's credentials drive the session; the fields
-        // only need to be filled on the first connect or after a rotation.
         const response = await accountFetch(`/api/v3/kaggle/${action}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(hasInput ? { email, password } : {}),
+          body: "{}",
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          if (data.detail && data.detail.error === "kaggle_credentials_required") {
-            kaggleCredentials.open = true;
-            kaggleEmail.focus();
-            throw new Error("Save your Kaggle email and password once, then connect.");
+          if (data.detail && data.detail.error === "kaggle_api_key_required") {
+            throw new Error("Save your Kaggle API key first.");
           }
           throw new Error(
             typeof data.detail === "string"
@@ -1507,16 +1893,12 @@
               : data.error || `Request failed (${response.status})`
           );
         }
-        if (data.error) throw new Error(data.error);
         setKaggleStatus(
-          data.report || (action === "disconnect"
-            ? "Stop request finished."
-            : "Start request finished. Waiting for the Kaggle worker to connect…"),
+          data.report || (action === "disconnect" ? "Stop requested." : "Start requested."),
           "ok"
         );
-        kagglePassword.value = "";
       } catch (error) {
-        setKaggleStatus(error.message || "Could not reach the browserful agent.", "error");
+        setKaggleStatus(error.message || "Could not reach the Kaggle API.", "error");
       } finally {
         setKagglePending(false);
         fetchGpuWorkers();
@@ -1524,14 +1906,16 @@
     }
 
     function initKaggleControls() {
-      kaggleEmail.value = localStorage.getItem("KAGGLE_EMAIL") || "";
       if (kaggleControlsBound) return;
       kaggleControlsBound = true;
       btnKaggleToggle.addEventListener("click", toggleKaggle);
+      btnKaggleSave.addEventListener("click", saveKaggleKey);
+      refreshKaggleKeyState();
     }
 
     function renderGpuWorkers(data) {
       const workers = Array.isArray(data && data.workers) ? data.workers : [];
+      autoState.workerCount = workers.length;
       updateKaggleButton(workers);
       gpuWorkerList.textContent = "";
 
@@ -1771,18 +2155,7 @@
       canvasContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
 
       // Build parameters payload mirroring ImagenRequest Pydantic scheme
-      const seedVal = parseInt(seedInput.value, 10);
-      const payload = {
-        prompt: document.getElementById('prompt').value || "A beautiful cybernetic concept art",
-        negative_prompt: document.getElementById('negative-prompt').value || null,
-        width: finalWidth,
-        height: finalHeight,
-        cfg: parseFloat(cfgRange.value),
-        steps: parseInt(stepsRange.value, 10),
-        clip_skip: parseInt(clipRange.value, 10),
-        scheduler: schedulerSelect.value,
-        seed: isNaN(seedVal) ? null : seedVal
-      };
+      const payload = currentParams();
 
       // Disable inputs and change submit button state
       btnSubmitImagine.disabled = true;
@@ -2008,10 +2381,14 @@
     const accountBody = document.getElementById("account-body");
     const accountNote = document.getElementById("account-note");
     const accountError = document.getElementById("account-error");
+    const accountChip = document.getElementById("account-chip");
+    const accountChipText = document.getElementById("account-chip-text");
+    const btnSignOut = document.getElementById("btn-sign-out");
 
     let accountState = { token: null, identity: null, accountId: null };
     let appStarted = false;
     let kaggleControlsBound = false;
+    let signOutBound = false;
 
     function accountClear() {
       accountBody.replaceChildren();
@@ -2067,6 +2444,33 @@
       });
     }
 
+    async function loadIdentity(accountId) {
+      const direct = await idbGet("account:" + accountId);
+      if (direct) return direct;
+      const legacy = await idbGet("identity");
+      if (legacy && legacy.accountId === accountId) {
+        await idbPut("account:" + accountId, legacy);
+        return legacy;
+      }
+      return null;
+    }
+
+    async function localAccountIds() {
+      const db = await idbOpen();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(ACCOUNT_DB_STORE, "readonly");
+        const request = tx.objectStore(ACCOUNT_DB_STORE).getAllKeys();
+        request.onsuccess = () =>
+          resolve(
+            (request.result || [])
+              .map((key) => String(key))
+              .filter((key) => key.startsWith("account:"))
+              .map((key) => key.slice("account:".length))
+          );
+        request.onerror = () => reject(request.error);
+      });
+    }
+
     async function generateIdentity() {
       const pair = await crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]
@@ -2078,7 +2482,70 @@
       const privateKey = await crypto.subtle.importKey(
         "jwk", jwk, { name: "ECDH", namedCurve: "P-256" }, false, ["deriveBits"]
       );
-      return { privateKey, publicKey };
+      return { privateKey, publicKey, privateJwk: jwk };
+    }
+
+    async function deriveKeyWrapKey(token) {
+      const encoder = new TextEncoder();
+      const ikm = await crypto.subtle.importKey(
+        "raw", encoder.encode(token), "HKDF", false, ["deriveKey"]
+      );
+      return crypto.subtle.deriveKey(
+        {
+          name: "HKDF",
+          salt: encoder.encode("imagineit-key-wrap-v1"),
+          info: encoder.encode("private-key"),
+          hash: "SHA-256",
+        },
+        ikm,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    async function wrapPrivateJwk(token, jwk) {
+      const key = await deriveKeyWrapKey(token);
+      const nonce = crypto.getRandomValues(new Uint8Array(12));
+      const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: nonce },
+        key,
+        new TextEncoder().encode(JSON.stringify(jwk))
+      );
+      const bytes = new Uint8Array(nonce.length + ciphertext.byteLength);
+      bytes.set(nonce, 0);
+      bytes.set(new Uint8Array(ciphertext), nonce.length);
+      return btoa(String.fromCharCode(...bytes));
+    }
+
+    async function unwrapPrivateJwk(token, wrapped) {
+      const key = await deriveKeyWrapKey(token);
+      const bytes = Uint8Array.from(atob(wrapped), (c) => c.charCodeAt(0));
+      const nonce = bytes.slice(0, 12);
+      const ciphertext = bytes.slice(12);
+      const plain = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: nonce }, key, ciphertext
+      );
+      return JSON.parse(new TextDecoder().decode(plain));
+    }
+
+    async function restoreIdentity(token, accountId) {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/v3/account/wrapped-key`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const jwk = await unwrapPrivateJwk(token, data.wrapped_key);
+        const privateKey = await crypto.subtle.importKey(
+          "jwk", jwk, { name: "ECDH", namedCurve: "P-256" }, false, ["deriveBits"]
+        );
+        const identity = { privateKey, publicKey: "", accountId };
+        await idbPut("account:" + accountId, identity);
+        return identity;
+      } catch (error) {
+        return null;
+      }
     }
 
     async function openSealedImage(buffer) {
@@ -2124,6 +2591,41 @@
       if (gpuPollInterval) { clearInterval(gpuPollInterval); gpuPollInterval = null; }
       showGate();
       renderWelcome(message || "");
+      updateAccountChip();
+    }
+
+    function updateAccountChip() {
+      const signedIn = Boolean(accountState.token && accountState.identity);
+      accountChipText.textContent =
+        signedIn && accountState.accountId
+          ? `Signed in · ${accountState.accountId.slice(0, 8)}`
+          : "Signed out";
+      accountChip.classList.toggle("is-off", !signedIn);
+      btnSignOut.hidden = !signedIn;
+    }
+
+    function signOut() {
+      stopAuto();
+      if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+      if (gpuPollInterval) { clearInterval(gpuPollInterval); gpuPollInterval = null; }
+
+      localStorage.removeItem(ACCOUNT_TOKEN_KEY);
+      // The browser key stays in IndexedDB so signing back in can still
+      // decrypt the account's images.
+      accountState = { token: null, identity: null, accountId: null };
+      appStarted = false;
+
+      autoStrip.replaceChildren();
+      galleryGrid.replaceChildren();
+      galleryCount.textContent = "";
+      viewportImage.src = "";
+      viewportImage.classList.remove("active");
+      postActions.style.display = "none";
+      errorWrapper.style.display = "none";
+
+      showGate();
+      renderWelcome("Signed out.");
+      updateAccountChip();
     }
 
     function renderWelcome(message) {
@@ -2145,15 +2647,84 @@
       accountBody.append(
         accountButton("Sign in with an existing token", () => signInWithToken(input.value), true)
       );
+      localAccountIds()
+        .then((ids) => {
+          if (!ids.length) return;
+          const hint = document.createElement("p");
+          hint.className = "kaggle-hint";
+          hint.style.marginTop = "0.85rem";
+          hint.textContent =
+            "This browser holds keys for " +
+            ids.slice(0, 3).map((id) => id.slice(0, 8) + "…").join(", ") +
+            " — sign in with one of those tokens instead of creating another.";
+          accountBody.appendChild(hint);
+        })
+        .catch(() => {});
     }
 
-    function renderNoKey() {
+    function renderNoKey(localAccountId, tokenAccountId, token) {
       accountClear();
-      accountIntro(
-        "This browser does not hold the encryption key for that account.",
-        "Without the key nothing can be decrypted — the server only stores sealed data. Use the browser that created the account, or start a new account here."
-      );
+      if (localAccountId) {
+        accountIntro(
+          `This browser holds the key for account ${localAccountId.slice(0, 8)}…, not the token you pasted (${tokenAccountId.slice(0, 8)}…).`,
+          "A token only works where its key lives. Sign in with the token for that account, or create a new account here."
+        );
+      } else {
+        accountIntro(
+          "This browser does not hold any encryption key.",
+          "Accounts are tied to the browser they were created in. Use that browser, or create a new account here."
+        );
+      }
+      if (token) {
+        accountBody.append(
+          accountButton(
+            "Re-key this account (old images become unreadable)",
+            () => rekeyAccount(token, tokenAccountId)
+          )
+        );
+      }
       accountBody.append(accountButton("Create a new account", () => lockAccount("")));
+    }
+
+    async function rekeyAccount(token, accountId) {
+      const confirmed = window.confirm(
+        "Re-key this account? Everything generated before now was sealed to the old key and will be permanently unreadable."
+      );
+      if (!confirmed) return;
+      accountLead.textContent = "Creating a new key…";
+      accountError.textContent = "";
+      try {
+        const identity = await generateIdentity();
+        const response = await fetch(`${BACKEND_URL}/api/v3/account/public-key`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            public_key: identity.publicKey,
+            wrapped_key: await wrapPrivateJwk(token, identity.privateJwk),
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(
+            typeof data.detail === "string"
+              ? data.detail
+              : `Re-key failed (${response.status})`
+          );
+        }
+        await idbPut("account:" + accountId, {
+          privateKey: identity.privateKey,
+          publicKey: identity.publicKey,
+          accountId,
+        });
+        localStorage.setItem(ACCOUNT_TOKEN_KEY, token);
+        accountState = { token, identity, accountId };
+        startApp();
+      } catch (error) {
+        accountError.textContent = error.message || "Could not re-key the account.";
+      }
     }
 
     function showToken(token) {
@@ -2192,11 +2763,24 @@
         if (!response.ok) {
           throw new Error(data.detail || `Signup failed (${response.status})`);
         }
-        await idbPut("identity", {
+        await idbPut("account:" + data.account_id, {
           privateKey: identity.privateKey,
           publicKey: identity.publicKey,
           accountId: data.account_id,
         });
+        try {
+          const wrapped = await wrapPrivateJwk(data.token, identity.privateJwk);
+          await fetch(`${BACKEND_URL}/api/v3/account/wrapped-key`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.token}`,
+            },
+            body: JSON.stringify({ wrapped_key: wrapped }),
+          });
+        } catch (error) {
+          console.warn("could not escrow the private key", error);
+        }
         localStorage.setItem(ACCOUNT_TOKEN_KEY, data.token);
         accountState = { token: data.token, identity, accountId: data.account_id };
         showToken(data.token);
@@ -2222,11 +2806,15 @@
         if (response.status === 401) throw new Error("That token is not valid.");
         if (!response.ok) throw new Error(`Account check failed (${response.status})`);
         const data = await response.json();
-        const identity = await idbGet("identity");
-        if (!identity || identity.accountId !== data.account_id) {
+        let identity = await loadIdentity(data.account_id);
+        if (!identity) {
+          identity = await restoreIdentity(token, data.account_id);
+        }
+        if (!identity) {
           localStorage.removeItem(ACCOUNT_TOKEN_KEY);
           accountState = { token: null, identity: null, accountId: null };
-          renderNoKey();
+          const known = await localAccountIds();
+          renderNoKey(known[0] || null, data.account_id, token);
           return;
         }
         localStorage.setItem(ACCOUNT_TOKEN_KEY, token);
@@ -2256,10 +2844,14 @@
         }
         if (!response.ok) throw new Error(`Account check failed (${response.status})`);
         const data = await response.json();
-        const identity = await idbGet("identity");
-        if (!identity || identity.accountId !== data.account_id) {
+        let identity = await loadIdentity(data.account_id);
+        if (!identity) {
+          identity = await restoreIdentity(token, data.account_id);
+        }
+        if (!identity) {
+          const known = await localAccountIds();
           showGate();
-          renderNoKey();
+          renderNoKey(known[0] || null, data.account_id, token);
           return;
         }
         accountState = { token, identity, accountId: data.account_id };
@@ -2281,6 +2873,15 @@
       if (appStarted) return;
       appStarted = true;
       hideGate();
+      bindTabs();
+      bindAuto();
+      bindWorkerKeys();
+      bindGpuAdd();
+      updateAccountChip();
+      if (!signOutBound) {
+        signOutBound = true;
+        btnSignOut.addEventListener("click", signOut);
+      }
       loadSettingsFromCookie();
       updateSliderTrack(stepsRange);
       updateSliderTrack(cfgRange);
@@ -2289,6 +2890,350 @@
       updateSliderTrack(heightRange);
       startGpuStatusPolling();
       initKaggleControls();
+    }
+
+    // ------------------------------------------------------------------
+    // Auto generation: keep every connected GPU busy
+    // ------------------------------------------------------------------
+    const btnAutoToggle = document.getElementById("btn-auto-toggle");
+    const autoStatus = document.getElementById("auto-status");
+    const autoStrip = document.getElementById("auto-strip");
+
+    const autoState = {
+      enabled: false,
+      ticker: null,
+      ticking: false,
+      jobs: new Map(),
+      workerCount: 0,
+    };
+    let autoBound = false;
+
+    function setAutoStatus(message, isError) {
+      autoStatus.textContent = message;
+      autoStatus.classList.toggle("is-error", Boolean(isError));
+    }
+
+    function currentParams() {
+      if (isRandom) {
+        seedInput.value = Math.floor(Math.random() * 1000000000);
+      }
+      const seedVal = parseInt(seedInput.value, 10);
+      return {
+        prompt:
+          document.getElementById("prompt").value.trim() ||
+          "A beautiful cybernetic concept art",
+        negative_prompt: document.getElementById("negative-prompt").value || null,
+        width: snapTo64(parseInt(widthRange.value, 10)),
+        height: snapTo64(parseInt(heightRange.value, 10)),
+        cfg: parseFloat(cfgRange.value),
+        steps: parseInt(stepsRange.value, 10),
+        clip_skip: parseInt(clipRange.value, 10),
+        scheduler: schedulerSelect.value,
+        seed: isNaN(seedVal) ? null : seedVal,
+      };
+    }
+
+    async function submitAutoJob() {
+      try {
+        const response = await accountFetch("/api/v3/images/inferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentParams()),
+        });
+        if (!response.ok) {
+          throw new Error(`Auto submit failed (${response.status})`);
+        }
+        const data = await response.json();
+        if (!data.promise_id) throw new Error("Auto submit returned no promise_id");
+        watchAutoJob(data.promise_id);
+        return true;
+      } catch (error) {
+        setAutoStatus(error.message || "Auto submit failed.", true);
+        return false;
+      }
+    }
+
+    function watchAutoJob(promiseId) {
+      const job = { timer: null, busy: false };
+      autoState.jobs.set(promiseId, job);
+      job.timer = setInterval(async () => {
+        if (job.busy) return;
+        job.busy = true;
+        try {
+          const response = await accountFetch(
+            `/api/v3/images/inferences/${promiseId}`
+          );
+          if (!response.ok) return;
+          const data = await response.json();
+          if (data.status === "succeeded") {
+            finishAutoJob(promiseId);
+            await showAutoImage(promiseId);
+          } else if (data.status === "failed" || data.status === "cancelled") {
+            finishAutoJob(promiseId);
+            setAutoStatus(data.error || `A generation ${data.status}.`, true);
+          }
+        } catch (error) {
+          // Transient: keep polling.
+        } finally {
+          job.busy = false;
+        }
+      }, 800);
+    }
+
+    function finishAutoJob(promiseId) {
+      const job = autoState.jobs.get(promiseId);
+      if (job) clearInterval(job.timer);
+      autoState.jobs.delete(promiseId);
+    }
+
+    async function showAutoImage(promiseId) {
+      try {
+        const response = await accountFetch(`/api/v3/images/${promiseId}`);
+        if (!response.ok) return;
+        const blob = await openSealedImage(await response.arrayBuffer());
+        const url = URL.createObjectURL(blob);
+        const image = new Image();
+        image.src = url;
+        await image.decode().catch(() => {});
+
+        canvasContainer.style.display = "flex";
+        if (image.naturalWidth && image.naturalHeight) {
+          previewViewport.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+        }
+        progressOverlay.style.display = "none";
+        viewportShimmer.style.display = "none";
+        previewViewport.classList.remove("rendering");
+        viewportImage.src = url;
+        viewportImage.classList.add("active");
+        btnDownload.href = url;
+        btnFullscreen.onclick = () => window.open(url, "_blank");
+        postActions.style.display = "flex";
+
+        const thumb = document.createElement("button");
+        thumb.type = "button";
+        thumb.className = "auto-thumb";
+        thumb.title = "Open full size";
+        const thumbImage = document.createElement("img");
+        thumbImage.src = url;
+        thumbImage.alt = "Auto-generated image";
+        thumb.appendChild(thumbImage);
+        thumb.addEventListener("click", () => window.open(url, "_blank"));
+        autoStrip.prepend(thumb);
+        while (autoStrip.children.length > 12) {
+          autoStrip.lastElementChild.remove();
+        }
+      } catch (error) {
+        setAutoStatus("Generated, but the image could not be decrypted.", true);
+      }
+    }
+
+    async function autoTick() {
+      if (!autoState.enabled || autoState.ticking) return;
+      autoState.ticking = true;
+      try {
+        if (autoState.workerCount === 0) {
+          setAutoStatus("Waiting for a GPU…");
+          return;
+        }
+        const target = Math.max(1, Math.min(autoState.workerCount, 8));
+        let failed = false;
+        while (autoState.enabled && autoState.jobs.size < target) {
+          const ok = await submitAutoJob();
+          if (!ok) { failed = true; break; }
+        }
+        if (!failed) {
+          setAutoStatus(
+            `Running on ${target} GPU${target === 1 ? "" : "s"} · ${autoState.jobs.size} active`
+          );
+        }
+      } finally {
+        autoState.ticking = false;
+      }
+    }
+
+    function startAuto() {
+      if (autoState.enabled) return;
+      const prompt = document.getElementById("prompt").value.trim();
+      if (!prompt) {
+        setAutoStatus("Write a prompt first.", true);
+        document.getElementById("prompt").focus();
+        return;
+      }
+      autoState.enabled = true;
+      btnAutoToggle.classList.add("is-on");
+      btnAutoToggle.textContent = "Stop auto";
+      canvasContainer.style.display = "flex";
+      autoState.ticker = setInterval(autoTick, 600);
+      autoTick();
+    }
+
+    function stopAuto() {
+      autoState.enabled = false;
+      if (autoState.ticker) clearInterval(autoState.ticker);
+      autoState.ticker = null;
+      btnAutoToggle.classList.remove("is-on");
+      btnAutoToggle.textContent = "Auto generate";
+      setAutoStatus(
+        autoState.jobs.size ? `Stopped · ${autoState.jobs.size} finishing` : "Off"
+      );
+    }
+
+    function bindAuto() {
+      if (autoBound) return;
+      autoBound = true;
+      btnAutoToggle.addEventListener("click", () => {
+        if (autoState.enabled) stopAuto(); else startAuto();
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // Per-user GPU worker keys
+    // ------------------------------------------------------------------
+    const workerKeyList = document.getElementById("worker-key-list");
+    const workerKeyOutput = document.getElementById("worker-key-output");
+    const btnWorkerKeyDownload = document.getElementById("btn-worker-key-download");
+    let workerKeyBound = false;
+    let workerKeyShown = false;
+
+    function renderWorkerKeys(keys) {
+      workerKeyList.replaceChildren();
+      if (!keys.length) {
+        const empty = document.createElement("div");
+        empty.className = "kaggle-hint";
+        empty.textContent = "No keys yet.";
+        workerKeyList.appendChild(empty);
+        return;
+      }
+      for (const item of keys) {
+        const row = document.createElement("div");
+        row.className = "worker-key-row";
+        const label = document.createElement("span");
+        label.textContent = `${item.worker_id} · ${item.key_id}`;
+        row.appendChild(label);
+        workerKeyList.appendChild(row);
+      }
+    }
+
+    async function refreshWorkerKeys() {
+      try {
+        const response = await accountFetch("/api/v3/workers/keys");
+        if (!response.ok) return;
+        const data = await response.json();
+        renderWorkerKeys(Array.isArray(data.keys) ? data.keys : []);
+      } catch (error) {
+        // Leave the previous list.
+      }
+    }
+
+    async function ensureCurrentWorkerKey() {
+      if (workerKeyShown) return;
+      try {
+        const response = await accountFetch("/api/v3/workers/keys/current");
+        if (!response.ok) return;
+        const data = await response.json();
+        const payload = {
+          worker_id: data.worker_id,
+          key_id: data.key_id,
+          key: data.key,
+        };
+        workerKeyOutput.textContent = JSON.stringify(payload, null, 2);
+        workerKeyOutput.hidden = false;
+        const blob = new Blob([JSON.stringify(payload)], {
+          type: "application/json",
+        });
+        btnWorkerKeyDownload.href = URL.createObjectURL(blob);
+        btnWorkerKeyDownload.download = `${data.worker_id}.worker.json`;
+        btnWorkerKeyDownload.hidden = false;
+        workerKeyShown = true;
+      } catch (error) {
+        // Leave it hidden; the command hint still explains the flow.
+      }
+    }
+
+    function bindWorkerKeys() {
+      if (workerKeyBound) return;
+      workerKeyBound = true;
+      refreshWorkerKeys();
+    }
+
+    // ------------------------------------------------------------------
+    // Tabs + gallery
+    // ------------------------------------------------------------------
+    const tabGeneration = document.getElementById("tab-generation");
+    const tabGallery = document.getElementById("tab-gallery");
+    const viewGeneration = document.getElementById("view-generation");
+    const viewGallery = document.getElementById("view-gallery");
+    const galleryGrid = document.getElementById("gallery-grid");
+    const galleryEmpty = document.getElementById("gallery-empty");
+    const galleryCount = document.getElementById("gallery-count");
+
+    let tabsBound = false;
+    let galleryLoading = false;
+
+    function showView(name) {
+      const gallery = name === "gallery";
+      viewGeneration.hidden = gallery;
+      viewGallery.hidden = !gallery;
+      tabGeneration.classList.toggle("is-active", !gallery);
+      tabGallery.classList.toggle("is-active", gallery);
+      tabGeneration.setAttribute("aria-selected", String(!gallery));
+      tabGallery.setAttribute("aria-selected", String(gallery));
+      if (gallery) loadGallery();
+    }
+
+    async function loadGallery() {
+      if (galleryLoading) return;
+      galleryLoading = true;
+      galleryGrid.replaceChildren();
+      galleryEmpty.hidden = true;
+      galleryCount.textContent = "Loading…";
+      try {
+        const response = await accountFetch("/api/v3/images?limit=60");
+        if (!response.ok) {
+          throw new Error(`Gallery request failed (${response.status})`);
+        }
+        const data = await response.json();
+        const images = Array.isArray(data.images) ? data.images : [];
+        galleryCount.textContent = `${images.length} image${images.length === 1 ? "" : "s"}`;
+        if (!images.length) {
+          galleryEmpty.hidden = false;
+          return;
+        }
+        for (const item of images) {
+          const tile = document.createElement("button");
+          tile.type = "button";
+          tile.className = "gallery-item";
+          tile.title = "Open full size";
+          try {
+            const imageResponse = await accountFetch(
+              `/api/v3/images/${item.promise_id}`
+            );
+            if (!imageResponse.ok) continue;
+            const blob = await openSealedImage(await imageResponse.arrayBuffer());
+            const url = URL.createObjectURL(blob);
+            const image = document.createElement("img");
+            image.src = url;
+            image.alt = "Generated image";
+            image.loading = "lazy";
+            tile.appendChild(image);
+            tile.addEventListener("click", () => window.open(url, "_blank"));
+          } catch (error) {
+            continue;
+          }
+          galleryGrid.appendChild(tile);
+        }
+      } catch (error) {
+        galleryCount.textContent = "Could not load the gallery.";
+      } finally {
+        galleryLoading = false;
+      }
+    }
+
+    function bindTabs() {
+      if (tabsBound) return;
+      tabsBound = true;
+      tabGeneration.addEventListener("click", () => showView("generation"));
+      tabGallery.addEventListener("click", () => showView("gallery"));
     }
 
     // Resolve configuration, then require an account before anything runs.

@@ -53,7 +53,9 @@ class JobDispatcher:
         for conn in await self.gateway.idle_workers():
             if conn.closed:
                 continue
-            job = await jobs.claim_next_job(conn.worker_id, self.gateway.lease_seconds)
+            job = await jobs.claim_next_job(
+                conn.worker_id, self.gateway.lease_seconds, conn.account_id
+            )
             if job is None:
                 break
             params = job.get("params")

@@ -80,13 +80,23 @@ async def get_job(
         return job_to_dict(row) if row else None
 
 
-async def claim_next_job(worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
-    """Atomically move the oldest queued job to ``dispatched``."""
+async def claim_next_job(
+    worker_id: str, lease_seconds: int, account_id: str | None = None
+) -> dict[str, Any] | None:
+    """Atomically move the oldest queued job for this worker's owner.
+
+    Account-bound workers only ever see their owner's jobs.  Legacy shared
+    workers (file/env keys) are limited to legacy unowned rows, which no new
+    job can create.
+    """
     async with db_session() as session:
+        stmt = select(Image).where(Image.status == "queued")
+        if account_id is None:
+            stmt = stmt.where(Image.account_id.is_(None))
+        else:
+            stmt = stmt.where(Image.account_id == account_id)
         stmt = (
-            select(Image)
-            .where(Image.status == "queued")
-            .order_by(Image.created_at, Image.id)
+            stmt.order_by(Image.created_at, Image.id)
             .limit(1)
             .with_for_update(skip_locked=True)
         )

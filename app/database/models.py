@@ -19,6 +19,9 @@ class Account(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     public_key: Mapped[str] = mapped_column(Text, nullable=False)
+    # The private key, wrapped with a key derived from the account token. The
+    # token is never stored, so the server cannot unwrap this.
+    wrapped_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -42,6 +45,31 @@ class KaggleCredential(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+
+class WorkerKey(Base):
+    """A GPU worker key owned by one account.
+
+    The PSK itself is stored encrypted with APP_SECRET because the handshake
+    needs the raw value to verify the HMAC proof; it is returned to the user
+    once, when the key is created.
+    """
+
+    __tablename__ = "worker_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    worker_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    key_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    secret: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 

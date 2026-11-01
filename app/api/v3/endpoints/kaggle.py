@@ -1,169 +1,49 @@
-"""Start or stop the Kaggle GPU worker through the browserful agent.
+"""Per-user Kaggle control.
 
-The browserful key stays on the server: the browser posts credentials to this
-API, and this module forwards the instruction to browserful with the bearer
-token from ``BROWSERFUL_KEY``.
+The browser never talks to Kaggle.  It stores a ``KGAT_`` API token with the
+account, and the app uses that token to push the notebook, which starts a run.
+Kaggle has no stop endpoint, so disconnect asks the worker inside the notebook
+to exit instead (the worker's shutdown handler ends the session).
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
-import os
-import urllib.error
-import urllib.request
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.api.v3.deps import require_account
 from app.database.models import Account
-from app.services import accounts
+from app.services import accounts, kaggle_api, worker_keys
 
 router = APIRouter()
 
-DEFAULT_BROWSERFUL_URL = "https://browserful.kitsui.co"
-BROWSERFUL_TIMEOUT_SECONDS = 660
-BROWSERFUL_SESSION = "imagineit-kaggle"
 
-CONNECT_PROMPT = (
-    "Open Kaggle then open notebook called imagineitv3. "
-    "Select GPU 2x T4s (Make sure you hover on them first, then click) "
-    "then run the notebook. If not logged in, signin with email: {email}, pass: {password}"
-)
-
-DISCONNECT_PROMPT = (
-    "Open Kaggle then select notebook imagineitv3. "
-    "If it is running (Draft Session Starting means its running), Stop this instance. "
-    "If not logged in, signin with email: {email}, pass: {password}"
-)
-
-
-class KaggleCredentials(BaseModel):
-    email: str = Field(min_length=1, max_length=200)
-    password: str = Field(min_length=1, max_length=200)
-
-
-class KaggleCredentialsInput(BaseModel):
-    """Body for connect/disconnect, where both fields are optional."""
-
-    email: str | None = Field(default=None, max_length=200)
-    password: str | None = Field(default=None, max_length=200)
-
-
-def _run_browserful(prompt: str, password: str, session: str) -> dict:
-    api_key = os.getenv("BROWSERFUL_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError("BROWSERFUL_KEY is not configured on the app backend")
-
-    base_url = os.getenv("BROWSERFUL_URL", DEFAULT_BROWSERFUL_URL).rstrip("/")
-    payload = json.dumps(
-        {
-            "prompt": prompt,
-            "sessionId": session,
-            # Keep the password out of browserful's event stream and reports.
-            "redact": [password],
-        }
-    ).encode("utf-8")
-
-    request = urllib.request.Request(
-        f"{base_url}/api/run",
-        data=payload,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(
-            request, timeout=BROWSERFUL_TIMEOUT_SECONDS
-        ) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:2000]
-        detail = detail.replace(password, "«redacted»")
-        raise RuntimeError(f"browserful returned {exc.code}: {detail}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"could not reach browserful: {exc.reason}") from exc
-    except TimeoutError as exc:
-        raise RuntimeError("browserful did not answer before the timeout") from exc
-
-
-async def _dispatch(
-    template: str, credentials: KaggleCredentials, account_id: str
-) -> dict:
-    prompt = template.format(email=credentials.email, password=credentials.password)
-    # One browserful session per account: two users must never share a Kaggle
-    # browser, or their notebook actions would interleave.
-    session = f"{BROWSERFUL_SESSION}-{account_id}"
-    try:
-        return await asyncio.to_thread(
-            _run_browserful, prompt, credentials.password, session
-        )
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-async def _resolve_credentials(
-    account: Account, payload: KaggleCredentialsInput | None
-) -> KaggleCredentials:
-    """Use the supplied login and persist it, or fall back to the stored one.
-
-    Browserful needs the password in the clear to sign in, so this is the one
-    piece of data the server encrypts with APP_SECRET instead of sealing to the
-    client key.  It is never returned by the API.
-    """
-    if payload is not None and payload.email and payload.password:
-        await accounts.save_kaggle_credentials(
-            account.id, payload.email, payload.password
-        )
-        return KaggleCredentials(email=payload.email, password=payload.password)
-    if payload is not None and (payload.email or payload.password):
-        raise HTTPException(
-            status_code=400,
-            detail={"error": "kaggle_credentials_incomplete"},
-        )
-    stored = await accounts.load_kaggle_credentials(account.id)
-    if stored is None:
-        raise HTTPException(
-            status_code=400,
-            detail={"error": "kaggle_credentials_required"},
-        )
-    email, password = stored
-    return KaggleCredentials(email=email, password=password)
-
-
-@router.post("/kaggle/connect")
-async def connect_kaggle(
-    payload: KaggleCredentialsInput | None = None,
-    account: Account = Depends(require_account),
-):
-    credentials = await _resolve_credentials(account, payload)
-    return await _dispatch(CONNECT_PROMPT, credentials, account.id)
-
-
-@router.post("/kaggle/disconnect")
-async def disconnect_kaggle(
-    payload: KaggleCredentialsInput | None = None,
-    account: Account = Depends(require_account),
-):
-    credentials = await _resolve_credentials(account, payload)
-    return await _dispatch(DISCONNECT_PROMPT, credentials, account.id)
+class KaggleApiKeyIn(BaseModel):
+    api_key: str = Field(min_length=8, max_length=500)
+    kernel_ref: str | None = Field(default=None, max_length=200)
+    username: str | None = Field(default=None, max_length=100)
 
 
 @router.get("/kaggle/credentials")
 async def kaggle_credentials_status(account: Account = Depends(require_account)):
-    return {"configured": await accounts.has_kaggle_credentials(account.id)}
+    return {
+        "configured": await accounts.has_kaggle_credentials(account.id),
+        "kernel_ref": await accounts.load_kaggle_kernel_ref(account.id),
+        "username": await accounts.load_kaggle_username(account.id),
+        "worker_keys": len(await worker_keys.list_for(account.id)),
+    }
 
 
 @router.put("/kaggle/credentials")
 async def save_kaggle_credentials(
-    payload: KaggleCredentials,
+    payload: KaggleApiKeyIn,
     account: Account = Depends(require_account),
 ):
-    await accounts.save_kaggle_credentials(account.id, payload.email, payload.password)
+    await accounts.save_kaggle_api_key(
+        account.id, payload.api_key, payload.kernel_ref, payload.username
+    )
     return {"configured": True}
 
 
@@ -171,3 +51,70 @@ async def save_kaggle_credentials(
 async def remove_kaggle_credentials(account: Account = Depends(require_account)):
     await accounts.delete_kaggle_credentials(account.id)
     return {"configured": False}
+
+
+@router.post("/kaggle/connect")
+async def connect_kaggle(
+    request: Request,
+    account: Account = Depends(require_account),
+):
+    api_key = await accounts.load_kaggle_api_key(account.id)
+    if not api_key:
+        raise HTTPException(
+            status_code=400, detail={"error": "kaggle_api_key_required"}
+        )
+
+    kernel_ref = await accounts.load_kaggle_kernel_ref(account.id)
+    username = await accounts.load_kaggle_username(account.id)
+    if not username and not kernel_ref:
+        username = await asyncio.to_thread(kaggle_api.detect_username, api_key)
+        if username:
+            await accounts.save_kaggle_api_key(account.id, api_key, None, username)
+    if not kernel_ref:
+        if not username:
+            raise HTTPException(
+                status_code=400, detail={"error": "kaggle_username_unknown"}
+            )
+        kernel_ref = f"{username}/imagineitv3"
+    gateway = getattr(request.app.state, "gateway", None)
+    busy = {conn.worker_id for conn in await gateway.snapshot()} if gateway else set()
+    worker = await worker_keys.ensure_for(account.id, busy)
+    key_payload = {
+        "worker_id": worker["worker_id"],
+        "key_id": worker["key_id"],
+        "key": worker["key"],
+    }
+
+    try:
+        user, slug = kaggle_api.split_ref(kernel_ref)
+        status = await asyncio.to_thread(kaggle_api.kernel_status, api_key, user, slug)
+        if kaggle_api.is_running(status):
+            return {"report": f"{user}/{slug} is already {status}."}
+        result = await asyncio.to_thread(
+            kaggle_api.start_kernel, api_key, kernel_ref, worker_key=key_payload
+        )
+    except kaggle_api.KaggleApiError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    if result.get("updated"):
+        return {
+            "report": f"Updated {result['ref']} to the app template and started it."
+        }
+    return {"report": f"Started {result['ref']} (notebook already up to date)."}
+
+
+@router.post("/kaggle/disconnect")
+async def disconnect_kaggle(
+    request: Request,
+    account: Account = Depends(require_account),
+):
+    gateway = getattr(request.app.state, "gateway", None)
+    if gateway is None:
+        return {"report": "No worker gateway is running."}
+
+    sent = await gateway.shutdown_kaggle_workers(
+        "requested from the web UI", account.id
+    )
+    if sent == 0:
+        return {"report": "No Kaggle worker is connected."}
+    return {"report": f"Asked {sent} Kaggle worker(s) to stop."}

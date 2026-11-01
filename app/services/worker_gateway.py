@@ -23,7 +23,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
 from app.database.minio import upload_image
-from app.services import accounts, e2e
+from app.services import accounts, e2e, worker_keys
 from app.services import jobs
 from app.worker_auth import WorkerKeyStore
 from shared.protocol import (
@@ -72,6 +72,7 @@ class WorkerConnection:
     model: str = ""
     device: str = ""
     kind: str = ""  # "kaggle" when the worker reports a Kaggle host
+    account_id: str | None = None  # set for keys issued by /workers/keys
     capabilities: dict[str, Any] = field(default_factory=dict)
     status: str = "loading"  # loading | ready | dispatching | busy
     active_job_id: str | None = None
@@ -153,6 +154,7 @@ class WorkerGateway:
                     "model": conn.model,
                     "device": conn.device,
                     "kind": conn.kind,
+                    "account_id": conn.account_id,
                     "status": conn.status,
                     "connected_seconds": max(0, int(now - conn.connected_at)),
                     "last_seen_seconds_ago": max(0, int(now - conn.last_seen)),
@@ -160,6 +162,28 @@ class WorkerGateway:
                 }
             )
         return sorted(workers, key=lambda item: item["worker_id"])
+
+    async def shutdown_kaggle_workers(
+        self, reason: str, account_id: str | None = None
+    ) -> int:
+        """Ask this account's Kaggle workers to exit.
+
+        The worker turns this into os._exit, which ends the notebook and frees
+        the user's Kaggle session.  Kaggle exposes no stop endpoint, so this is
+        the only way to disconnect without a browser.
+        """
+        sent = 0
+        for conn in await self.snapshot():
+            if conn.closed or conn.kind != "kaggle":
+                continue
+            if account_id is not None and conn.account_id != account_id:
+                continue
+            try:
+                await conn.send("shutdown", {"reason": reason})
+                sent += 1
+            except Exception:  # noqa: BLE001 - worker may vanish mid-send
+                logger.exception("Could not send shutdown to %s", conn.worker_id)
+        return sent
 
     async def close_all(self) -> None:
         for conn in await self.snapshot():
@@ -263,6 +287,16 @@ class WorkerGateway:
             return None
 
         psk = self.key_store.get(worker_id, key_id)
+        account_id: str | None = None
+        if psk is None:
+            record = await worker_keys.lookup(worker_id, key_id)
+            if record is not None:
+                try:
+                    psk = b64d(record.key_b64)
+                except ProtocolError:
+                    psk = None
+                else:
+                    account_id = record.account_id
         if psk is None:
             logger.warning("Rejected unknown worker key %s/%s", worker_id, key_id)
             await _safe_close(websocket, 4401, "unknown worker or key")
@@ -323,6 +357,7 @@ class WorkerGateway:
             key_id=key_id,
             session_id=session_id,
             channel=channel,
+            account_id=account_id,
         )
 
     # ------------------------------------------------------------------ #
