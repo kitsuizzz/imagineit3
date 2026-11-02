@@ -11,7 +11,3 @@ COPY worker.json ~/.imagineit/worker.json
 COPY . .
 
 RUN pip install '.[gpu]' --no-cache-dir
-
-ENTRYPOINT ["python"]
-
-CMD ["gpu_worker.py"]
