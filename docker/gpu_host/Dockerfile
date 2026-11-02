@@ -6,7 +6,7 @@ RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/r
 
 COPY . .
 
-RUN pip install '.[gpu]' --no-cache-dir
+RUN cd ../../ && pip install '.[gpu]' --no-cache-dir
 
 ENTRYPOINT ["python"]
 
