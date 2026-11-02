@@ -4,9 +4,9 @@ WORKDIR /app
 
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/rocm10.0 --no-cache-dir
 
-RUN mkdir ~/.imagineit
+RUN mkdir root/.imagineit
 
-COPY worker.json ~/.imagineit/worker.json
+COPY worker.json /root/.imagineit/worker.json
 
 COPY . .
 
