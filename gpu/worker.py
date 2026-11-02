@@ -50,6 +50,7 @@ DEFAULT_APP_URL = "ws://localhost:4600/internal/v1/workers/ws"
 DEFAULT_MODEL = "wssdaas/nova-anime-xl-ilv-19.0"
 WS_MAX_SIZE = 96 * 1024 * 1024
 
+from dotenv import load_dotenv
 
 @dataclass
 class WorkerConfig:
