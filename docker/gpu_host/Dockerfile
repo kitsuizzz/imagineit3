@@ -4,9 +4,7 @@ WORKDIR /app
 
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/rocm10.0 --no-cache-dir
 
-COPY ../../. .
-
-WORKDIR /app/imagineit3
+COPY . .
 
 RUN pip install '.[gpu]' --no-cache-dir
 
