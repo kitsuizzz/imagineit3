@@ -14,4 +14,4 @@ RUN pip install '.[gpu]' --no-cache-dir
 
 ENTRYPOINT ["python"]
 
-CMD ["gpu_worker.py"]
+CMD ["gpu_worker.py", "--key-file", "${GPU_WORKER_KEY_FILE}"]
