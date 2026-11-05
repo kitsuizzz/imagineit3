@@ -16,3 +16,7 @@ gpu_workers.json
 
 # Runtime logs
 logs/
+
+# Rust terminal client
+tui/target/
+/imagineit/

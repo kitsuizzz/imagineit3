@@ -1,0 +1,25 @@
+[package]
+name = "imagineit-tui"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "A terminal client for ImagineIt"
+
+[dependencies]
+anyhow = "1"
+aes-gcm = "0.10"
+base64 = "0.22"
+clap = { version = "4", features = ["derive", "env"] }
+directories = "6"
+hkdf = "0.12"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+p256 = { version = "0.13", features = ["ecdh"] }
+rand = "0.8"
+ratatui = "0.30"
+ratatui-image = { version = "11", default-features = false, features = ["crossterm"] }
+ratatui-textarea = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "macros"] }

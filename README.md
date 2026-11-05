@@ -226,6 +226,27 @@ The inference status values are `queued`, `dispatched`, `running`, `succeeded`, 
 - Keys are stored outside the database. Do not commit `gpu_workers.json` or `*.worker.json`.
 - The app backend currently runs as one instance because a worker connection lives in one process. Multi-instance routing would require a shared broker such as Valkey.
 
+## Terminal UI
+
+A Rust terminal client lives in `tui/`. It uses `ratatui-textarea` for prompts
+and parameters, decrypts images locally, and renders them with the Kitty,
+Sixel, or iTerm2 graphics protocols through `ratatui-image`.
+
+```bash
+cd tui
+cargo run --release -- --url http://localhost:4600
+```
+
+Create an account or sign in with an existing token on first launch. Press
+`F3` to see connected GPUs and fetch a per-account worker key; the panel shows
+the exact `gpu_worker.py` command for that key. Press `F4` to paste a Kaggle
+API token and manage Kaggle GPU profiles. The client also detects Caddy's
+`/ui-api` bridge, so on the hosted deployment either
+`--url https://imagineit.kitsui.co` or
+`--url https://imagineit.kitsui.co/ui-api` works. See
+[`tui/README.md`](tui/README.md) for key bindings, storage locations, and
+protocol options.
+
 ## Tests
 
 ```bash
